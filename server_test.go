@@ -288,5 +288,5 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	//t.Fatal(Run(":5555", ":memory:"))
+	//t.Fatal(Run("5555", ":memory:"))
 }

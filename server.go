@@ -273,5 +273,7 @@ func Run(port, dbPath string) (err error) {
 
 	n.UseHandler(r)
 
-	return http.ListenAndServe(port, n)
+	log.Printf("itpg-backend listening on port %q\n", port)
+
+	return http.ListenAndServe(":"+port, n)
 }
