@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"github.com/urfave/negroni"
 )
 
@@ -247,6 +248,12 @@ func Run(port, dbPath string) (err error) {
 	}
 	defer db.Close()
 
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"PUT", "GET", "DELETE"},
+		Debug:          true,
+	})
+
 	n := negroni.Classic()
 
 	r := mux.NewRouter()
@@ -271,6 +278,7 @@ func Run(port, dbPath string) (err error) {
 	r.HandleFunc("/professors/remove", RemoveProfessor).Methods("DELETE")
 	r.HandleFunc("/professors/removeforce", RemoveProfessorForce).Methods("DELETE")
 
+	n.Use(c)
 	n.UseHandler(r)
 
 	log.Printf("itpg-backend listening on port %q\n", port)
