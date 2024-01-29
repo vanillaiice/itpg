@@ -17,22 +17,22 @@ type DB struct {
 
 // Course represents a course with its code and name.
 type Course struct {
-	Code string
-	Name string
+	Code string `json:"code"`
+	Name string `json:"name"`
 }
 
 // Professor represents a professor with surname, middle name, and name.
 type Professor struct {
-	Surname    string
-	MiddleName string
-	Name       string
+	Surname    string `json:"surname"`
+	MiddleName string `json:"middleName"`
+	Name       string `json:"name"`
 }
 
 // Score represents a score with professor ID, course code, and the score value.
 type Score struct {
-	ProfessorId int
-	CourseCode  string
-	Score       float32
+	ProfessorId int     `json:"professorId"`
+	CourseCode  string  `json:"courseCode"`
+	Score       float32 `json:"score"`
 }
 
 // Close closes the database connection.
