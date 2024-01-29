@@ -53,7 +53,7 @@ func NewDB(path string) (*DB, error) {
 		"PRAGMA foreign_keys = ON",
 		"CREATE TABLE IF NOT EXISTS Courses(code TEXT PRIMARY KEY NOT NULL CHECK(code != ''), name TEXT NOT NULL CHECK(name != ''))",
 		"CREATE TABLE IF NOT EXISTS Professors(id INTEGER PRIMARY KEY NOT NULL, surname TEXT NOT NULL CHECK(surname != ''), middlename TEXT NOT NULL, name TEXT NOT NULL CHECK(name != ''), UNIQUE(surname, middlename, name))",
-		"CREATE TABLE IF NOT EXISTS Scores(professorid INTEGER NOT NULL, coursecode TEXT NOT NULL, score REAL CHECK(score >= 0 AND score <= 5), FOREIGN KEY(professorid) REFERENCES Professors(id), FOREIGN KEY(coursecode) REFERENCES Courses(code))",
+		"CREATE TABLE IF NOT EXISTS Scores(professorid INTEGER NOT NULL, coursecode TEXT NOT NULL, score REAL CHECK(score >= 0 AND score <= 5), UNIQUE(professorid, coursecode), FOREIGN KEY(professorid) REFERENCES Professors(id), FOREIGN KEY(coursecode) REFERENCES Courses(code))",
 	}
 	for _, s := range stmt {
 		_, err := execStmt(db.db, s)
