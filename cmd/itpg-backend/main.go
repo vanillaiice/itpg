@@ -26,9 +26,14 @@ func main() {
 				Aliases:  []string{"db"},
 				Required: true,
 			},
+			&cli.StringSliceFlag{
+				Name:    "allowed-origins",
+				Aliases: []string{"o"},
+				Value:   &cli.StringSlice{},
+			},
 		},
 		Action: func(ctx *cli.Context) error {
-			return itpg.Run(ctx.String("port"), ctx.Path("dbname"))
+			return itpg.Run(ctx.String("port"), ctx.Path("dbname"), ctx.StringSlice("allowed-origins"))
 		},
 	}
 
