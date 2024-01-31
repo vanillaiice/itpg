@@ -33,21 +33,31 @@ func TestServerAddCourse(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("TestServerAddCourse: got %v, want %v", rr.Code, http.StatusOK)
 	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Status == Err {
+		t.Error(resp.Message)
+	}
 }
 
 func TestServerAddProfessor(t *testing.T) {
 	err := dbInit()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
-	r, err := http.NewRequest("PUT", "/professors/add?surname=senpai&middlename=sakata&name=gintoki", nil)
+	r, err := http.NewRequest("PUT", "/professors/add?fullname=Gintoki%20Sakata%20Senpai", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	AddProfessor(rr, r)
 	if rr.Code != http.StatusOK {
-		t.Errorf("TestServerAddProfessor: got %v, want %v", rr.Code, http.StatusOK)
+		t.Fatalf("TestServerAddProfessor: got %v, want %v", rr.Code, http.StatusOK)
+	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Status == Err {
+		t.Error(resp.Message)
 	}
 }
 
@@ -56,7 +66,7 @@ func TestServerAddCourseProfessor(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	r, err := http.NewRequest("PUT", "/courses/addprof?id=1&code=S209", nil)
+	r, err := http.NewRequest("PUT", fmt.Sprintf("/courses/addprof?uuid=%s&code=S209", professors[1].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,6 +74,11 @@ func TestServerAddCourseProfessor(t *testing.T) {
 	AddCourseProfessor(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("TestServerAddCourseProfessor: got %v, want %v", rr.Code, http.StatusOK)
+	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Status == Err {
+		t.Error(resp.Message)
 	}
 }
 
@@ -78,12 +93,15 @@ func TestServerRemoveCourse(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	RemoveCourse(rr, r)
-	if rr.Code != http.StatusOK {
-		t.Errorf("TestServerRemoveCourse: got %v, want %v", rr.Code, http.StatusOK)
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("TestServerRemoveCourse: got %v, want %v", rr.Code, http.StatusInternalServerError)
 	}
 	resp := &Response{}
 	json.NewDecoder(rr.Body).Decode(&resp)
-	if resp.Msg != ErrForeignKeyConstraint {
+	if resp.Status != Err {
+		t.Error("TestServerRemoveCourse: expected constraint failed error")
+	}
+	if resp.Message != ErrForeignKeyConstraint {
 		fmt.Println(rr.Body)
 		t.Error("TestServerRemoveCourse: expected constraint failed error")
 	}
@@ -103,6 +121,11 @@ func TestServerRemoveCourseForce(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("TestServerRemoveCourseForce: got %v, want %v", rr.Code, http.StatusOK)
 	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Status == Err {
+		t.Error(resp.Message)
+	}
 }
 
 func TestServerRemoveCourseProfessor(t *testing.T) {
@@ -119,6 +142,11 @@ func TestServerRemoveCourseProfessor(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("TestServerRemoveCourseProfessor: got %v, want %v", rr.Code, http.StatusOK)
 	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Status == Err {
+		t.Error(resp.Message)
+	}
 }
 
 func TestServerRemoveProfessor(t *testing.T) {
@@ -126,20 +154,23 @@ func TestServerRemoveProfessor(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	r, err := http.NewRequest("DELETE", "/professors/remove?id=1", nil)
+	r, err := http.NewRequest("DELETE", fmt.Sprintf("/professors/remove?uuid=%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	RemoveProfessor(rr, r)
-	if rr.Code != http.StatusOK {
-		t.Errorf("TestServerRemoveProfessor: got %v, want %v", rr.Code, http.StatusOK)
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("TestServerRemoveProfessor: got %v, want %v", rr.Code, http.StatusInternalServerError)
 	}
 	resp := &Response{}
 	json.NewDecoder(rr.Body).Decode(&resp)
-	if resp.Msg != ErrForeignKeyConstraint {
+	if resp.Status != Err {
+		t.Error("TestServerRemoveProfessor: expected constraint failed error")
+	}
+	if resp.Message != ErrForeignKeyConstraint {
 		fmt.Println(rr.Body)
-		t.Error("TestServerRemoveCourse: expected constraint failed error")
+		t.Error("TestServerRemoveProfessor: expected constraint failed error")
 	}
 }
 
@@ -148,7 +179,7 @@ func TestServerRemoveProfessorForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	r, err := http.NewRequest("DELETE", "/professors/removeforce?id=1", nil)
+	r, err := http.NewRequest("DELETE", fmt.Sprintf("/professors/removeforce?uuid=%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,6 +187,11 @@ func TestServerRemoveProfessorForce(t *testing.T) {
 	RemoveProfessorForce(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("TestServerRemoveProfessorForce: got %v, want %v", rr.Code, http.StatusOK)
+	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Status == Err {
+		t.Error(resp.Message)
 	}
 }
 
@@ -172,6 +208,11 @@ func TestServerGetAllCourses(t *testing.T) {
 	GetAllCourses(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("TestServerGetAllCourses: got %v, want %v", rr.Code, http.StatusOK)
+	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Status == Err {
+		t.Error(resp.Message)
 	}
 }
 
@@ -207,12 +248,12 @@ func TestServerGetAllScores(t *testing.T) {
 	}
 }
 
-func TestGetCoursesByProfessors(t *testing.T) {
+func TestServerGetCoursesByProfessor(t *testing.T) {
 	err := dbInit()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	r, err := http.NewRequest("GET", "/courses/1", nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/courses/%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +317,7 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	r, err := http.NewRequest("PUT", "/courses/grade?id=1&code=CN9A&grade=3.5", nil)
+	r, err := http.NewRequest("UPDATE", fmt.Sprintf("/courses/grade?uuid=%s&code=%s&grade=3.5", professors[0].UUID, courses[0].Code), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,6 +325,11 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 	GradeCourseProfessor(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("TestServerGetScoresByCourse: got %v, want %v", rr.Code, http.StatusOK)
+	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Status == Err {
+		t.Error(resp.Message)
 	}
 }
 
