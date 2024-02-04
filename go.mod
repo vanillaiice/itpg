@@ -9,6 +9,7 @@ require (
 	github.com/rs/cors v1.10.1
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/urfave/negroni v1.0.0
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	modernc.org/sqlite v1.28.0
 )
 

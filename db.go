@@ -60,7 +60,7 @@ func NewDB(path string) (*DB, error) {
 	for _, s := range stmt {
 		_, err := execStmt(db.db, s)
 		if err != nil {
-			return db, err
+			return nil, err
 		}
 	}
 	return db, err

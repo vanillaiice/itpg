@@ -10,9 +10,9 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name:    "Is This Professor Good - Backend",
+		Name:    "itpg",
 		Suggest: true,
-		Version: "v0.0.2",
+		Version: "v0.0.3",
 		Authors: []*cli.Author{{Name: "Vanillaiice", Email: "vanillaiice@proton.me"}},
 		Usage:   "handle http requests and database transactions",
 		Flags: []cli.Flag{
@@ -22,8 +22,11 @@ func main() {
 				Value:   "5555",
 			},
 			&cli.PathFlag{
-				Name:     "dbname",
-				Aliases:  []string{"db"},
+				Name:     "db",
+				Required: true,
+			},
+			&cli.PathFlag{
+				Name:     "authdb",
 				Required: true,
 			},
 			&cli.StringSliceFlag{
@@ -33,7 +36,7 @@ func main() {
 			},
 		},
 		Action: func(ctx *cli.Context) error {
-			return itpg.Run(ctx.String("port"), ctx.Path("dbname"), ctx.StringSlice("allowed-origins"))
+			return itpg.Run(ctx.String("port"), ctx.Path("db"), ctx.Path("authdb"), ctx.StringSlice("allowed-origins"))
 		},
 	}
 
