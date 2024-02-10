@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/gofrs/uuid"
 )
 
 func decodeCredentials(w http.ResponseWriter, r *http.Request) (*Credentials, error) {
@@ -29,137 +27,57 @@ func isEmptyStr(w http.ResponseWriter, str ...string) error {
 	return nil
 }
 
-func checkPassword(w http.ResponseWriter, username, password string) (bool, error) {
-	match, err := authDB.CheckPassword(username, password)
+func checkCookieExpiry(w http.ResponseWriter, r *http.Request) (err error) {
+	username, err := userState.UsernameCookie(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	cookieExpiry, err := userState.Users().Get(username, "cookie-expiry")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	cookieExpiryTime, err := time.Parse(time.UnixDate, cookieExpiry)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		return false, err
+		return
 	}
-	return match, nil
-}
-
-func checkSessionTokenExpiry(w http.ResponseWriter, sessionToken string) (bool, error) {
-	expired, err := authDB.CheckSessionTokenExpiry(sessionToken)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return false, err
-	}
-	return expired, nil
-}
-
-func userExists(w http.ResponseWriter, username string) (bool, error) {
-	exists, err := authDB.UserExists(username)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return false, err
-	}
-	return exists, nil
-}
-
-func sessionExists(w http.ResponseWriter, sessionToken string) (bool, error) {
-	exists, err := authDB.SessionExists(sessionToken)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return false, err
-	}
-	return exists, nil
-}
-
-func sessionExistsByUsername(w http.ResponseWriter, username string) (bool, error) {
-	exists, err := authDB.SessionExistsByUsername(username)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return false, err
-	}
-	return exists, nil
-}
-
-func addUser(w http.ResponseWriter, username, password string) error {
-	err := authDB.AddUser(username, password)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return err
-	}
-	return nil
-}
-
-func addSession(w http.ResponseWriter, username string, expiry time.Time) (string, error) {
-	sessionToken, err := uuid.NewV4()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return "", err
-	}
-	err = authDB.AddSession(username, sessionToken.String(), expiry)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return "", err
-	}
-	return sessionToken.String(), nil
-}
-
-func refreshSessionToken(w http.ResponseWriter, sessionToken string, expiry time.Time) (string, error) {
-	newSessionToken, err := uuid.NewV4()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return "", err
-	}
-	n, err := authDB.RefreshSessionToken(sessionToken, newSessionToken.String(), expiry)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return "", err
-	}
-	if n == 0 {
-		w.WriteHeader(http.StatusInternalServerError)
-		return "", fmt.Errorf("no rows affected")
-	}
-	return newSessionToken.String(), nil
-}
-
-func deleteSessionToken(w http.ResponseWriter, sessionToken string) error {
-	n, err := authDB.DeleteSessionToken(sessionToken)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return err
-	}
-	if n == 0 {
-		w.WriteHeader(http.StatusInternalServerError)
-		return fmt.Errorf("no rows affected")
-	}
-	return nil
-}
-
-func deleteSessionTokenByUsername(w http.ResponseWriter, username string) error {
-	n, err := authDB.DeleteSessionTokenByUsername(username)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return err
-	}
-	if n == 0 {
-		w.WriteHeader(http.StatusInternalServerError)
-		return fmt.Errorf("no rows affected")
-	}
-	return nil
-}
-
-func getCookie(w http.ResponseWriter, r *http.Request) (*http.Cookie, error) {
-	c, err := r.Cookie("session_token")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			w.WriteHeader(http.StatusUnauthorized)
-			return nil, err
+	if time.Now().After(cookieExpiryTime) {
+		if userState.IsLoggedIn(username) {
+			userState.Logout(username)
 		}
-		w.WriteHeader(http.StatusBadRequest)
-		return nil, err
+		w.WriteHeader(http.StatusUnauthorized)
+		return fmt.Errorf("cookie expired")
 	}
-	return c, nil
+	return
 }
 
-func setCookie(w http.ResponseWriter, sessionToken string, expiry time.Time) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    sessionToken,
-		Expires:  expiry,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+func checkCookieExpiryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if expired := checkCookieExpiry(w, r); expired != nil {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func checkUserAlreadyGradedMiddleware(next http.HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, err := userState.UsernameCookie(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		courseCode := r.FormValue("code")
+		_, err = userState.Users().Get(username, courseCode)
+		if err == nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+		defer func() {
+			userState.Users().Set(username, courseCode, "")
+		}()
 	})
 }

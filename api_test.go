@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 func dbInit() (err error) {
@@ -205,8 +207,8 @@ func TestServerGetAllScores(t *testing.T) {
 	m := &Message{}
 	json.NewDecoder(rr.Body).Decode(&m)
 	lm := len(m.Message.([]interface{}))
-	if lm == 0 {
-		t.Errorf("got len = 0, want %s", "> 0")
+	if lm == 1 {
+		t.Errorf("got %d, want %d", lm, 1)
 	}
 }
 
@@ -215,20 +217,22 @@ func TestServerGetCoursesByProfessor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := http.NewRequest("GET", fmt.Sprintf("/courses?uuid=%s", professors[0].UUID), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/courses/%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	GetCoursesByProfessor(rr, r)
+	router := mux.NewRouter()
+	router.HandleFunc("/courses/{uuid}", GetCoursesByProfessor)
+	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	m := &Message{}
 	json.NewDecoder(rr.Body).Decode(&m)
 	lm := len(m.Message.([]interface{}))
-	if lm == 0 {
-		t.Error("got len = 0, want > 0")
+	if lm != 1 {
+		t.Errorf("got %d, want %d", lm, 1)
 	}
 }
 
@@ -237,20 +241,22 @@ func TestServerGetProfessorsByCourse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := http.NewRequest("GET", fmt.Sprintf("/professors?code=%s", courses[0].Code), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/professors/%s", courses[0].Code), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	GetProfessorsByCourse(rr, r)
+	router := mux.NewRouter()
+	router.HandleFunc("/professors/{code}", GetProfessorsByCourse)
+	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	m := &Message{}
 	json.NewDecoder(rr.Body).Decode(&m)
 	lm := len(m.Message.([]interface{}))
-	if lm == 0 {
-		t.Errorf("got len = 0, want %s", "> 0")
+	if lm != 1 {
+		t.Errorf("got %d, want %d", lm, 1)
 	}
 }
 
@@ -259,20 +265,22 @@ func TestServerGetScoresByProfessor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/prof?uuid=%s", professors[0].UUID), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/prof/%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	GetScoresByProfessor(rr, r)
+	router := mux.NewRouter()
+	router.HandleFunc("/scores/prof/{uuid}", GetScoresByProfessor)
+	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	m := &Message{}
 	json.NewDecoder(rr.Body).Decode(&m)
 	lm := len(m.Message.([]interface{}))
-	if lm == 0 {
-		t.Errorf("got len = 0, want %s", "> 0")
+	if lm != 1 {
+		t.Errorf("got %d, want %d", lm, 1)
 	}
 }
 
@@ -281,20 +289,22 @@ func TestServerGetScoresByCourse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/course?code=%s", courses[0].Code), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/course/%s", courses[0].Code), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	GetScoresByCourse(rr, r)
+	router := mux.NewRouter()
+	router.HandleFunc("/scores/course/{code}", GetScoresByCourse)
+	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	m := &Message{}
 	json.NewDecoder(rr.Body).Decode(&m)
 	lm := len(m.Message.([]interface{}))
-	if lm == 0 {
-		t.Errorf("got len = 0, want %s", "> 0")
+	if lm != 1 {
+		t.Errorf("got %d, want %d", lm, 1)
 	}
 }
 

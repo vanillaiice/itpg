@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 // AddCourse handles the HTTP request to add a new course.
@@ -147,7 +149,7 @@ func GetAllScores(w http.ResponseWriter, r *http.Request) {
 
 // GetCoursesByProfessor handles the HTTP request to get courses associated with a professor.
 func GetCoursesByProfessor(w http.ResponseWriter, r *http.Request) {
-	professorUUID := r.FormValue("uuid")
+	professorUUID := mux.Vars(r)["uuid"]
 	if err := isEmptyStr(w, professorUUID); err != nil {
 		return
 	}
@@ -162,7 +164,7 @@ func GetCoursesByProfessor(w http.ResponseWriter, r *http.Request) {
 
 // GetProfessorsByCourse handles the HTTP request to get professors associated with a course.
 func GetProfessorsByCourse(w http.ResponseWriter, r *http.Request) {
-	courseCode := r.FormValue("code")
+	courseCode := mux.Vars(r)["code"]
 	if err := isEmptyStr(w, courseCode); err != nil {
 		return
 	}
@@ -177,7 +179,7 @@ func GetProfessorsByCourse(w http.ResponseWriter, r *http.Request) {
 
 // GetScoresByProfessor handles the HTTP request to get scores associated with a professor.
 func GetScoresByProfessor(w http.ResponseWriter, r *http.Request) {
-	professorUUID := r.FormValue("uuid")
+	professorUUID := mux.Vars(r)["uuid"]
 	if err := isEmptyStr(w, professorUUID); err != nil {
 		return
 	}
@@ -192,7 +194,7 @@ func GetScoresByProfessor(w http.ResponseWriter, r *http.Request) {
 
 // GetScoresByCourse handles the HTTP request to get scores associated with a course.
 func GetScoresByCourse(w http.ResponseWriter, r *http.Request) {
-	courseCode := r.FormValue("code")
+	courseCode := mux.Vars(r)["code"]
 	if err := isEmptyStr(w, courseCode); err != nil {
 		return
 	}

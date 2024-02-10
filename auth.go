@@ -5,40 +5,34 @@ import (
 	"net/http"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/xyproto/permissionbolt/v2"
 )
 
 type Credentials struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
-const SessionTokenValidity = time.Second * 120
-
-func Signup(w http.ResponseWriter, r *http.Request) {
+func Register(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
 		return
 	}
 
-	err = isEmptyStr(w, creds.Username, creds.Password)
+	err = permissionbolt.ValidUsernamePassword(creds.Username, creds.Password)
 	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	exists, err := userExists(w, creds.Username)
-	if err != nil {
-		return
-	}
-	if exists {
-		w.WriteHeader(http.StatusForbidden)
+	hasUser := userState.HasUser(creds.Username)
+	if hasUser {
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	err = addUser(w, creds.Username, creds.Password)
-	if err != nil {
-		return
-	}
+	userState.AddUser(creds.Username, creds.Password, creds.Email)
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -47,130 +41,97 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	match, err := checkPassword(w, creds.Username, creds.Password)
-	if err != nil {
-		return
-	}
-	if !match {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	// check if session token expired ?
-
-	exists, err := sessionExistsByUsername(w, creds.Username)
-	if err != nil {
-		return
-	}
-	if exists {
-		err = deleteSessionTokenByUsername(w, creds.Username)
-	}
-
-	expiry := time.Now().Add(SessionTokenValidity)
-	sessionToken, err := addSession(w, creds.Username, expiry)
-	if err != nil {
-		return
-	}
-
-	setCookie(w, sessionToken, expiry)
-}
-
-func Logout(w http.ResponseWriter, r *http.Request) {
-	c, err := getCookie(w, r)
-	if err != nil {
-		return
-	}
-
-	exists, err := sessionExists(w, c.Value)
-	if err != nil {
-		return
-	}
-	if !exists {
+	hasUser := userState.HasUser(creds.Username)
+	if !hasUser {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
-	err = deleteSessionToken(w, c.Value)
-	if err != nil {
-		return
-	}
-
-	setCookie(w, "", time.Now())
-}
-
-func Refresh(w http.ResponseWriter, r *http.Request) {
-	c, err := getCookie(w, r)
-	if err != nil {
-		return
-	}
-
-	expired, err := checkSessionTokenExpiry(w, c.Value)
-	if err != nil {
-		return
-	}
-	if expired {
+	correct := userState.CorrectPassword(creds.Username, creds.Password)
+	if !correct {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	expiry := time.Now().Add(SessionTokenValidity)
-	newSessionToken, err := refreshSessionToken(w, c.Value, expiry)
-	if err != nil {
-		return
-	}
-
-	setCookie(w, newSessionToken, expiry)
-}
-
-func Greet(w http.ResponseWriter, r *http.Request) {
-	c, err := getCookie(w, r)
-	if err != nil {
-		return
-	}
-	expired, err := checkSessionTokenExpiry(w, c.Value)
-	if err != nil {
-		return
-	}
-	if expired {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	json.NewEncoder(w).Encode(&Message{Message: "Sup mate ?"})
 	/*
-			c, err := r.Cookie("session_token")
-			if err != nil {
-				if err == http.ErrNoCookie {
-					w.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(w).Encode(&Response{Status: Err, Message: err.Error()})
-					return
-				}
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(&Response{Status: Err, Message: err.Error()})
-				return
-			}
-			sessionToken := c.Value
-
-			exists, err := authDB.SessionExists(sessionToken)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(&Response{Status: Err, Message: err.Error()})
-				return
-			}
-			if !exists {
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-
-		expired, err := authDB.CheckSessionTokenExpiry(sessionToken)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(&Response{Status: Err, Message: err.Error()})
-			return
-		}
-		if expired {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(&Response{Status: Err, Message: "session token expired"})
+		isLoggedIn := userState.IsLoggedIn(creds.Username)
+		if isLoggedIn {
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 	*/
+
+	userState.Users().Set(
+		creds.Username,
+		"cookie-expiry",
+		time.Now().Add(cookieTimeout).Format(time.UnixDate),
+	)
+
+	userState.Login(w, creds.Username)
+}
+
+func Admin(w http.ResponseWriter, r *http.Request) {
+	creds, err := decodeCredentials(w, r)
+	if err != nil {
+		return
+	}
+	correct := userState.CorrectPassword(creds.Username, creds.Password)
+	if !correct {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	userState.AddUser(creds.Username, creds.Password, creds.Email)
+	userState.Login(w, creds.Username)
+	userState.SetAdminStatus(creds.Username)
+}
+
+func Logout(w http.ResponseWriter, r *http.Request) {
+	username, err := userState.UsernameCookie(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	isLoggedIn := userState.IsLoggedIn(username)
+	if !isLoggedIn {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	userState.Logout(username)
+}
+
+func ClearCookie(w http.ResponseWriter, r *http.Request) {
+	userState.ClearCookie(w)
+}
+
+func RefreshCookie(w http.ResponseWriter, r *http.Request) {
+	username, err := userState.UsernameCookie(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	userState.Users().Set(
+		username,
+		"cookie-expiry",
+		time.Now().Add(cookieTimeout).Format(time.UnixDate),
+	)
+
+	userState.Login(w, username)
+}
+
+func DeleteAccount(w http.ResponseWriter, r *http.Request) {
+	username, err := userState.UsernameCookie(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	userState.Users().DelKey(username, "cookie-expiry")
+	userState.RemoveUser(username)
+}
+
+func Greet(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(&Message{Message: "Sup mate ?"})
 }
