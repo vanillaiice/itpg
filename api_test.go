@@ -32,6 +32,9 @@ func TestServerAddCourse(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
+	if rr.Body.String() != success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	}
 }
 
 func TestServerAddProfessor(t *testing.T) {
@@ -47,6 +50,9 @@ func TestServerAddProfessor(t *testing.T) {
 	AddProfessor(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
+	}
+	if rr.Body.String() != success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
 	}
 }
 
@@ -64,6 +70,9 @@ func TestServerAddCourseProfessor(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
+	if rr.Body.String() != success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	}
 }
 
 func TestServerRemoveCourse(t *testing.T) {
@@ -79,6 +88,9 @@ func TestServerRemoveCourse(t *testing.T) {
 	RemoveCourse(rr, r)
 	if rr.Code != http.StatusInternalServerError {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusInternalServerError)
+	}
+	if rr.Body.String() != errInternal.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
 	}
 }
 
@@ -96,6 +108,9 @@ func TestServerRemoveCourseForce(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
+	if rr.Body.String() != success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	}
 }
 
 func TestServerRemoveCourseProfessor(t *testing.T) {
@@ -111,6 +126,9 @@ func TestServerRemoveCourseProfessor(t *testing.T) {
 	RemoveCourseProfessor(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
+	}
+	if rr.Body.String() != success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
 	}
 }
 
@@ -128,6 +146,9 @@ func TestServerRemoveProfessor(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusInternalServerError)
 	}
+	if rr.Body.String() != errInternal.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	}
 }
 
 func TestServerRemoveProfessorForce(t *testing.T) {
@@ -143,6 +164,9 @@ func TestServerRemoveProfessorForce(t *testing.T) {
 	RemoveProfessorForce(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
+	}
+	if rr.Body.String() != success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
 	}
 }
 
@@ -160,11 +184,14 @@ func TestServerGetAllCourses(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	m := &Message{}
-	json.NewDecoder(rr.Body).Decode(&m)
-	lm := len(m.Message.([]interface{}))
-	if lm == 0 {
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp == 0 {
 		t.Errorf("got len = 0, want %s", "> 0")
+	}
+	if resp.Code != successCode {
+		t.Errorf("got %d, want %d", resp.Code, successCode)
 	}
 }
 
@@ -182,10 +209,10 @@ func TestServerGetAllProfessors(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	m := &Message{}
-	json.NewDecoder(rr.Body).Decode(&m)
-	lm := len(m.Message.([]interface{}))
-	if lm == 0 {
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp == 0 {
 		t.Errorf("got len = 0, want %s", "> 0")
 	}
 }
@@ -204,11 +231,11 @@ func TestServerGetAllScores(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	m := &Message{}
-	json.NewDecoder(rr.Body).Decode(&m)
-	lm := len(m.Message.([]interface{}))
-	if lm == 1 {
-		t.Errorf("got %d, want %d", lm, 1)
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp == 1 {
+		t.Errorf("got %d, want %d", lresp, 1)
 	}
 }
 
@@ -228,11 +255,11 @@ func TestServerGetCoursesByProfessor(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	m := &Message{}
-	json.NewDecoder(rr.Body).Decode(&m)
-	lm := len(m.Message.([]interface{}))
-	if lm != 1 {
-		t.Errorf("got %d, want %d", lm, 1)
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp != 1 {
+		t.Errorf("got %d, want %d", lresp, 1)
 	}
 }
 
@@ -252,11 +279,11 @@ func TestServerGetProfessorsByCourse(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	m := &Message{}
-	json.NewDecoder(rr.Body).Decode(&m)
-	lm := len(m.Message.([]interface{}))
-	if lm != 1 {
-		t.Errorf("got %d, want %d", lm, 1)
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp != 1 {
+		t.Errorf("got %d, want %d", lresp, 1)
 	}
 }
 
@@ -276,11 +303,11 @@ func TestServerGetScoresByProfessor(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	m := &Message{}
-	json.NewDecoder(rr.Body).Decode(&m)
-	lm := len(m.Message.([]interface{}))
-	if lm != 1 {
-		t.Errorf("got %d, want %d", lm, 1)
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp != 1 {
+		t.Errorf("got %d, want %d", lresp, 1)
 	}
 }
 
@@ -300,11 +327,11 @@ func TestServerGetScoresByCourse(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	m := &Message{}
-	json.NewDecoder(rr.Body).Decode(&m)
-	lm := len(m.Message.([]interface{}))
-	if lm != 1 {
-		t.Errorf("got %d, want %d", lm, 1)
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp != 1 {
+		t.Errorf("got %d, want %d", lresp, 1)
 	}
 }
 
@@ -321,5 +348,8 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 	GradeCourseProfessor(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
+	}
+	if rr.Body.String() != success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
 	}
 }

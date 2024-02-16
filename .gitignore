@@ -1,2 +1,11 @@
+# Ignore binaries
+bin/
+
+# Ignore Makefile
 Makefile
+
+# Ignore database files
 *.db
+
+# Ignore .env files
+*.env

@@ -4,80 +4,163 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 )
 
-func decodeCredentials(w http.ResponseWriter, r *http.Request) (*Credentials, error) {
-	var credentials Credentials
-	err := json.NewDecoder(r.Body).Decode(&credentials)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return nil, err
-	}
-	return &credentials, err
-}
-
-func isEmptyStr(w http.ResponseWriter, str ...string) error {
+// isEmptyStr checks if any of the provided strings are empty.
+func isEmptyStr(w http.ResponseWriter, str ...string) (err error) {
 	for _, s := range str {
 		if s == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			return fmt.Errorf("got empty str")
+			errEmptyValue.WriteJSON(w)
+			return errEmptyValue.Error()
 		}
 	}
-	return nil
+	return
 }
 
+// decodeCredentials decodes JSON data from the request body into a Credentials struct.
+func decodeCredentials(w http.ResponseWriter, r *http.Request) (*Credentials, error) {
+	var credentials Credentials
+	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		errBadRequest.WriteJSON(w)
+		return nil, err
+	}
+	return &credentials, nil
+}
+
+// extractDomain extracts the domain part from an email address.
+// It takes an email address string as input and returns the domain part.
+// If the email address is in an invalid format (e.g., missing "@" symbol),
+// it returns an empty string.
+func extractDomain(email string) (domain string, err error) {
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return domain, fmt.Errorf("invalid email format")
+	}
+	domain = parts[1]
+	return domain, err
+}
+
+// validAllowedDomains checks if the list of allowed mail domains is empty.
+func validAllowedDomains(domains []string) (err error) {
+	if len(domains) == 0 {
+		return fmt.Errorf("got empty list of allowed mail domains")
+	}
+	return
+}
+
+// checkDomainAllowed checks if the given domain is allowed based on the list of allowed mail domains.
+func checkDomainAllowed(domain string) (err error) {
+	if AllowedMailDomains[0] == "*" {
+		return
+	}
+	contains := slices.Contains(AllowedMailDomains, domain)
+	if !contains {
+		return errEmailDomainNotAllowed.Error()
+	}
+	return
+}
+
+// checkCookieExpiry checks if the user's session cookie has expired.
+// If the cookie has expired, it logs out the user, writes an Unauthorized response, and returns an error.
+// It returns nil if the cookie is valid and has not expired.
 func checkCookieExpiry(w http.ResponseWriter, r *http.Request) (err error) {
 	username, err := userState.UsernameCookie(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
+		errInvalidCookie.WriteJSON(w)
 		return
 	}
+
 	cookieExpiry, err := userState.Users().Get(username, "cookie-expiry")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
+		errInvalidCookie.WriteJSON(w)
 		return
 	}
+
 	cookieExpiryTime, err := time.Parse(time.UnixDate, cookieExpiry)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		errInternal.WriteJSON(w)
 		return
 	}
+
 	if time.Now().After(cookieExpiryTime) {
 		if userState.IsLoggedIn(username) {
 			userState.Logout(username)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
-		return fmt.Errorf("cookie expired")
+		errExpiredCookie.WriteJSON(w)
+		return errExpiredCookie.Error()
 	}
+
 	return
 }
 
-func checkCookieExpiryMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if expired := checkCookieExpiry(w, r); expired != nil {
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func checkUserAlreadyGradedMiddleware(next http.HandlerFunc) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// checkConfirmedMiddleware is a middleware that checks if the user is confirmed.
+// If the user is not confirmed, it writes a Forbidden response.
+// It calls the next handler if the user is confirmed.
+func checkConfirmedMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		username, err := userState.UsernameCookie(r)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
+			errInvalidCookie.WriteJSON(w)
 			return
 		}
-		courseCode := r.FormValue("code")
-		_, err = userState.Users().Get(username, courseCode)
-		if err == nil {
-			w.WriteHeader(http.StatusForbidden)
+
+		if !userState.IsConfirmed(username) {
+			w.WriteHeader(http.StatusUnauthorized)
+			errNotConfirmed.WriteJSON(w)
 			return
 		}
+
 		next.ServeHTTP(w, r)
-		defer func() {
-			userState.Users().Set(username, courseCode, "")
-		}()
-	})
+	}
+}
+
+// checkCookieExpiryMiddleware is a middleware that checks if the user's session cookie has expired.
+// If the cookie has expired, it writes an Unauthorized response and returns.
+// It calls the next handler if the cookie is valid and has not expired.
+func checkCookieExpiryMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if expired := checkCookieExpiry(w, r); expired == nil {
+			next.ServeHTTP(w, r)
+		}
+	}
+}
+
+// checkUserAlreadyGradedMiddleware is a middleware that checks if the user has already graded a course.
+// It checks if the user has a grade for the specified course.
+// If the user has already graded the course, it writes a Forbidden response and returns.
+// It calls the next handler if the user has not yet graded the course and sets an empty grade for the user and course.
+func checkUserAlreadyGradedMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username, err := userState.UsernameCookie(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			errInvalidCookie.WriteJSON(w)
+			return
+		}
+
+		courseCode := r.FormValue("code")
+		if err = isEmptyStr(w, courseCode); err != nil {
+			return
+		}
+
+		if _, err = userState.Users().Get(username, courseCode); err == nil {
+			w.WriteHeader(http.StatusForbidden)
+			errCourseGraded.WriteJSON(w)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+
+		userState.Users().Set(username, courseCode, "")
+	}
 }

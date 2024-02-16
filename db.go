@@ -35,6 +35,7 @@ type Score struct {
 	CourseCode    string  `json:"code"`
 	CourseName    string  `json:"name"`
 	Score         float32 `json:"score"`
+	Count         int     `json:"count"`
 }
 
 // Close closes the database connection.
@@ -55,7 +56,7 @@ func NewDB(path string) (*DB, error) {
 		"PRAGMA foreign_keys = ON",
 		"CREATE TABLE IF NOT EXISTS Courses(code TEXT PRIMARY KEY NOT NULL CHECK(code != ''), name TEXT NOT NULL CHECK(name != ''))",
 		"CREATE TABLE IF NOT EXISTS Professors(uuid TEXT(36) PRIMARY KEY NOT NULL, fullname TEXT NOT NULL CHECK(fullname != ''))",
-		"CREATE TABLE IF NOT EXISTS Scores(professoruuid TEXT(36) NOT NULL, coursecode TEXT NOT NULL, score REAL CHECK(score >= 0 AND score <= 5), UNIQUE(professoruuid, coursecode), FOREIGN KEY(professoruuid) REFERENCES Professors(uuid), FOREIGN KEY(coursecode) REFERENCES Courses(code))",
+		"CREATE TABLE IF NOT EXISTS Scores(professoruuid TEXT(36) NOT NULL, coursecode TEXT NOT NULL, score REAL CHECK(score >= 0 AND score <= 5), count INTEGER NOT NULL, UNIQUE(professoruuid, coursecode), FOREIGN KEY(professoruuid) REFERENCES Professors(uuid), FOREIGN KEY(coursecode) REFERENCES Courses(code))",
 	}
 	for _, s := range stmt {
 		_, err := execStmt(db.db, s)
@@ -86,7 +87,7 @@ func (db *DB) AddProfessor(fullName string) (n int64, err error) {
 
 // AddCourseProfessor adds a course to a professor in the database.
 func (db *DB) AddCourseProfessor(professorUUID, courseCode string) (n int64, err error) {
-	stmt := fmt.Sprintf("INSERT INTO Scores(professoruuid, coursecode) VALUES(%q, %q)", professorUUID, courseCode)
+	stmt := fmt.Sprintf("INSERT INTO Scores(professoruuid, coursecode, count) VALUES(%q, %q, 0)", professorUUID, courseCode)
 	n, err = execStmt(db.db, stmt)
 	return
 }
@@ -168,7 +169,7 @@ func (db *DB) GetAllProfessors() (professors []*Professor, err error) {
 
 // GetAllScores retrieves all scores from the database.
 func (db *DB) GetAllScores() (scores []*Score, err error) {
-	stmt := fmt.Sprintf("SELECT Scores.professoruuid, Professors.fullName, Courses.name, Scores.coursecode, IFNULL(score, %d) FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code", NullFloat64)
+	stmt := fmt.Sprintf("SELECT Scores.professoruuid, Professors.fullName, Courses.name, Scores.coursecode, IFNULL(score, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code", NullFloat64)
 	rows, err := db.db.Query(stmt)
 	if err != nil {
 		return
@@ -176,12 +177,13 @@ func (db *DB) GetAllScores() (scores []*Score, err error) {
 	defer rows.Close()
 	var professorUUID, professorFullName, courseCode, courseName string
 	var score float64
+	var count int
 	for rows.Next() {
-		err = rows.Scan(&professorUUID, &professorFullName, &courseName, &courseCode, &score)
+		err = rows.Scan(&professorUUID, &professorFullName, &courseName, &courseCode, &score, &count)
 		if err != nil {
 			return nil, err
 		}
-		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorFullName, CourseCode: courseCode, CourseName: courseName, Score: float32(score)})
+		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorFullName, CourseCode: courseCode, CourseName: courseName, Score: float32(score), Count: count})
 	}
 	return
 }
@@ -226,7 +228,7 @@ func (db *DB) GetProfessorsByCourse(courseCode string) (professors []*Professor,
 
 // GetScoresByProfessor retrieves all scores associated with a professor from the database.
 func (db *DB) GetScoresByProfessor(professorUUID string) (scores []*Score, err error) {
-	stmt := fmt.Sprintf("SELECT Professors.fullname, Courses.name, Scores.coursecode, IFNULL(Scores.score, %d) FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Scores.professoruuid = %q", NullFloat64, professorUUID)
+	stmt := fmt.Sprintf("SELECT Professors.fullname, Courses.name, Scores.coursecode, IFNULL(Scores.score, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Scores.professoruuid = %q", NullFloat64, professorUUID)
 	rows, err := db.db.Query(stmt)
 	if err != nil {
 		return
@@ -234,19 +236,20 @@ func (db *DB) GetScoresByProfessor(professorUUID string) (scores []*Score, err e
 	defer rows.Close()
 	var professorFullName, courseCode, courseName string
 	var score float64
+	var count int
 	for rows.Next() {
-		err = rows.Scan(&professorFullName, &courseName, &courseCode, &score)
+		err = rows.Scan(&professorFullName, &courseName, &courseCode, &score, &count)
 		if err != nil {
 			return nil, err
 		}
-		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorFullName, CourseCode: courseCode, CourseName: courseName, Score: float32(score)})
+		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorFullName, CourseCode: courseCode, CourseName: courseName, Score: float32(score), Count: count})
 	}
 	return
 }
 
 // GetScoresByCourse retrieves all scores associated with a course from the database.
 func (db *DB) GetScoresByCourse(courseCode string) (scores []*Score, err error) {
-	stmt := fmt.Sprintf("SELECT Professors.fullname, Courses.name, Scores.professoruuid, IFNULL(Scores.score, %d) FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Scores.coursecode = %q", NullFloat64, courseCode)
+	stmt := fmt.Sprintf("SELECT Professors.fullname, Courses.name, Scores.professoruuid, IFNULL(Scores.score, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Scores.coursecode = %q", NullFloat64, courseCode)
 	rows, err := db.db.Query(stmt)
 	if err != nil {
 		return
@@ -254,12 +257,13 @@ func (db *DB) GetScoresByCourse(courseCode string) (scores []*Score, err error) 
 	defer rows.Close()
 	var professorUUID, professorFullName, courseName string
 	var score float64
+	var count int
 	for rows.Next() {
-		err = rows.Scan(&professorFullName, &courseName, &professorUUID, &score)
+		err = rows.Scan(&professorFullName, &courseName, &professorUUID, &score, &count)
 		if err != nil {
 			return nil, err
 		}
-		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorFullName, CourseCode: courseCode, CourseName: courseName, Score: float32(score)})
+		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorFullName, CourseCode: courseCode, CourseName: courseName, Score: float32(score), Count: count})
 	}
 	return
 }
@@ -275,7 +279,7 @@ func (db *DB) GradeCourseProfessor(professorUUID, courseCode string, grade float
 	} else {
 		lastGrade = (lastGrade + grade) / 2
 	}
-	stmt := fmt.Sprintf("UPDATE scores SET Score = %0.2f WHERE professoruuid = %q AND coursecode = %q", lastGrade, professorUUID, courseCode)
+	stmt := fmt.Sprintf("UPDATE Scores SET score = %0.2f, count = count + 1 WHERE professoruuid = %q AND coursecode = %q", lastGrade, professorUUID, courseCode)
 	n, err = execStmt(db.db, stmt)
 	return
 }
