@@ -14,8 +14,8 @@ func isEmptyStr(w http.ResponseWriter, str ...string) (err error) {
 	for _, s := range str {
 		if s == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			errEmptyValue.WriteJSON(w)
-			return errEmptyValue.Error()
+			ErrEmptyValue.WriteJSON(w)
+			return ErrEmptyValue.Error()
 		}
 	}
 	return
@@ -26,7 +26,7 @@ func decodeCredentials(w http.ResponseWriter, r *http.Request) (*Credentials, er
 	var credentials Credentials
 	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		errBadRequest.WriteJSON(w)
+		ErrBadRequest.WriteJSON(w)
 		return nil, err
 	}
 	return &credentials, nil
@@ -60,7 +60,7 @@ func checkDomainAllowed(domain string) (err error) {
 	}
 	contains := slices.Contains(AllowedMailDomains, domain)
 	if !contains {
-		return errEmailDomainNotAllowed.Error()
+		return ErrEmailDomainNotAllowed.Error()
 	}
 	return
 }
@@ -69,34 +69,34 @@ func checkDomainAllowed(domain string) (err error) {
 // If the cookie has expired, it logs out the user, writes an Unauthorized response, and returns an error.
 // It returns nil if the cookie is valid and has not expired.
 func checkCookieExpiry(w http.ResponseWriter, r *http.Request) (err error) {
-	username, err := userState.UsernameCookie(r)
+	username, err := UserState.UsernameCookie(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
-		errInvalidCookie.WriteJSON(w)
+		ErrInvalidCookie.WriteJSON(w)
 		return
 	}
 
-	cookieExpiry, err := userState.Users().Get(username, "cookie-expiry")
+	cookieExpiry, err := UserState.Users().Get(username, "cookie-expiry")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
-		errInvalidCookie.WriteJSON(w)
+		ErrInvalidCookie.WriteJSON(w)
 		return
 	}
 
 	cookieExpiryTime, err := time.Parse(time.UnixDate, cookieExpiry)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errInternal.WriteJSON(w)
+		ErrInternal.WriteJSON(w)
 		return
 	}
 
 	if time.Now().After(cookieExpiryTime) {
-		if userState.IsLoggedIn(username) {
-			userState.Logout(username)
+		if UserState.IsLoggedIn(username) {
+			UserState.Logout(username)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
-		errExpiredCookie.WriteJSON(w)
-		return errExpiredCookie.Error()
+		ErrExpiredCookie.WriteJSON(w)
+		return ErrExpiredCookie.Error()
 	}
 
 	return
@@ -107,16 +107,16 @@ func checkCookieExpiry(w http.ResponseWriter, r *http.Request) (err error) {
 // It calls the next handler if the user is confirmed.
 func checkConfirmedMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, err := userState.UsernameCookie(r)
+		username, err := UserState.UsernameCookie(r)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
-			errInvalidCookie.WriteJSON(w)
+			ErrInvalidCookie.WriteJSON(w)
 			return
 		}
 
-		if !userState.IsConfirmed(username) {
+		if !UserState.IsConfirmed(username) {
 			w.WriteHeader(http.StatusUnauthorized)
-			errNotConfirmed.WriteJSON(w)
+			ErrNotConfirmed.WriteJSON(w)
 			return
 		}
 
@@ -141,10 +141,10 @@ func checkCookieExpiryMiddleware(next http.HandlerFunc) http.HandlerFunc {
 // It calls the next handler if the user has not yet graded the course and sets an empty grade for the user and course.
 func checkUserAlreadyGradedMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, err := userState.UsernameCookie(r)
+		username, err := UserState.UsernameCookie(r)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
-			errInvalidCookie.WriteJSON(w)
+			ErrInvalidCookie.WriteJSON(w)
 			return
 		}
 
@@ -153,14 +153,14 @@ func checkUserAlreadyGradedMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		if _, err = userState.Users().Get(username, courseCode); err == nil {
+		if _, err = UserState.Users().Get(username, courseCode); err == nil {
 			w.WriteHeader(http.StatusForbidden)
-			errCourseGraded.WriteJSON(w)
+			ErrCourseGraded.WriteJSON(w)
 			return
 		}
 
 		next.ServeHTTP(w, r)
 
-		userState.Users().Set(username, courseCode, "")
+		UserState.Users().Set(username, courseCode, "")
 	}
 }

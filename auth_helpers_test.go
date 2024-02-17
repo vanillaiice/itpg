@@ -97,8 +97,8 @@ func initTestUserState() (err error) {
 	if err != nil {
 		return
 	}
-	userState = perm.UserState()
-	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
+	UserState = perm.UserState()
+	UserState.SetCookieTimeout(int64(CookieTimeout.Seconds()))
 	return
 }
 
@@ -113,8 +113,8 @@ func TestCheckCookieExpiry(t *testing.T) {
 	}
 	defer removeUserState()
 
-	userState.AddUser(creds.Email, creds.Password, "")
-	userState.Confirm(creds.Email)
+	UserState.AddUser(creds.Email, creds.Password, "")
+	UserState.Confirm(creds.Email)
 
 	w := httptest.NewRecorder()
 
@@ -147,7 +147,7 @@ func TestCheckCookieExpiry(t *testing.T) {
 		t.Error("expected failure")
 	}
 
-	userState.Users().Set(
+	UserState.Users().Set(
 		creds.Email,
 		"cookie-expiry",
 		time.Now().Add(-time.Hour).Format(time.UnixDate),
@@ -158,7 +158,7 @@ func TestCheckCookieExpiry(t *testing.T) {
 
 	err = checkCookieExpiry(w, r)
 	if err == nil {
-		t.Errorf("got %v, want %v", err, errExpiredCookie.Error())
+		t.Errorf("got %v, want %v", err, ErrExpiredCookie.Error())
 	}
 }
 
@@ -176,8 +176,8 @@ func TestCheckConfirmedMiddleware_Unconfirmed(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
-	userState.AddUser(creds.Email, creds.Password, "")
-	userState.Login(w, creds.Email)
+	UserState.AddUser(creds.Email, creds.Password, "")
+	UserState.Login(w, creds.Email)
 
 	cookie := w.Result().Cookies()[0]
 	c := &http.Cookie{
@@ -207,9 +207,9 @@ func TestCheckConfirmedMiddleware_Confirmed(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
-	userState.AddUser(creds.Email, creds.Password, "")
-	userState.Confirm(creds.Email)
-	userState.Login(w, creds.Email)
+	UserState.AddUser(creds.Email, creds.Password, "")
+	UserState.Confirm(creds.Email)
+	UserState.Login(w, creds.Email)
 
 	cookie := w.Result().Cookies()[0]
 	c := &http.Cookie{
@@ -239,8 +239,8 @@ func TestCheckCookieExpiryMiddleware(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
-	userState.AddUser(creds.Email, creds.Password, "")
-	userState.Confirm(creds.Email)
+	UserState.AddUser(creds.Email, creds.Password, "")
+	UserState.Confirm(creds.Email)
 
 	Login(w, r)
 
@@ -257,7 +257,7 @@ func TestCheckCookieExpiryMiddleware(t *testing.T) {
 		t.Errorf("got %v, want %v", w.Code, http.StatusOK)
 	}
 
-	userState.Users().Set(
+	UserState.Users().Set(
 		creds.Email,
 		"cookie-expiry",
 		time.Now().Add(-time.Hour).Format(time.UnixDate),
@@ -268,7 +268,7 @@ func TestCheckCookieExpiryMiddleware(t *testing.T) {
 
 	err = checkCookieExpiry(w, r)
 	if err == nil {
-		t.Errorf("got %v, want %v", err, errExpiredCookie.Error())
+		t.Errorf("got %v, want %v", err, ErrExpiredCookie.Error())
 	}
 }
 
@@ -286,8 +286,8 @@ func TestCheckUserAlreadyGradedMiddleware(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/grade?code="+courses[0].Code, bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
-	userState.AddUser(creds.Email, creds.Password, "")
-	userState.Confirm(creds.Email)
+	UserState.AddUser(creds.Email, creds.Password, "")
+	UserState.Confirm(creds.Email)
 
 	Login(w, r)
 

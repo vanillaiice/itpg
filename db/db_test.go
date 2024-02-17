@@ -1,4 +1,4 @@
-package itpg
+package db
 
 import (
 	"testing"
@@ -21,7 +21,7 @@ var professorNames = []string{
 	"Professor Oak",
 }
 
-func initDb(path ...string) (*DB, error) {
+func initDB(path ...string) (*DB, error) {
 	if len(path) == 0 {
 		path = append(path, ":memory:")
 	}
@@ -71,7 +71,7 @@ func TestNewDB(t *testing.T) {
 }
 
 func TestAddCourse(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestAddCourse(t *testing.T) {
 }
 
 func TestAddProfessor(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestAddProfessor(t *testing.T) {
 }
 
 func TestAddCourseProfessor(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestAddCourseProfessor(t *testing.T) {
 }
 
 func TestRemoveCourse(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestRemoveCourse(t *testing.T) {
 }
 
 func TestRemoveCourseProfessor(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestRemoveCourseProfessor(t *testing.T) {
 }
 
 func TestRemoveProfessor(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestRemoveProfessor(t *testing.T) {
 }
 
 func TestGetAllCourses(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestGetAllCourses(t *testing.T) {
 }
 
 func TestGetAllProfessors(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,7 @@ func TestGetAllProfessors(t *testing.T) {
 }
 
 func TestGetAllScores(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,13 +237,13 @@ func TestGetAllScores(t *testing.T) {
 	}
 }
 
-func TestGetCoursesByProfessor(t *testing.T) {
-	db, err := initDb()
+func TestGetCoursesByProfessorUUID(t *testing.T) {
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allCourses, err := db.GetCoursesByProfessor(professors[0].UUID)
+	allCourses, err := db.GetCoursesByProfessorUUID(professors[0].UUID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -252,13 +252,13 @@ func TestGetCoursesByProfessor(t *testing.T) {
 	}
 }
 
-func TestGetProfessorsByCourse(t *testing.T) {
-	db, err := initDb()
+func TestGetProfessorsByCourseCode(t *testing.T) {
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allProfessors, err := db.GetProfessorsByCourse("CN9A")
+	allProfessors, err := db.GetProfessorsByCourseCode("CN9A")
 	if err != nil {
 		t.Error(err)
 	}
@@ -267,13 +267,13 @@ func TestGetProfessorsByCourse(t *testing.T) {
 	}
 }
 
-func TestGetScoresByProfessor(t *testing.T) {
-	db, err := initDb()
+func TestGetScoresByProfessorUUID(t *testing.T) {
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allScores, err := db.GetScoresByProfessor(professors[0].UUID)
+	allScores, err := db.GetScoresByProfessorUUID(professors[0].UUID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -282,13 +282,58 @@ func TestGetScoresByProfessor(t *testing.T) {
 	}
 }
 
-func TestGetScoresByCourse(t *testing.T) {
-	db, err := initDb()
+func TestGetScoresByProfessorName(t *testing.T) {
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allScores, err := db.GetScoresByCourse("S209")
+	allScores, err := db.GetScoresByProfessorName(professors[0].FullName)
+	if err != nil {
+		t.Error(err)
+	}
+	if !cmp.Equal(allScores[0], scores[0]) {
+		t.Errorf("got %v, want %v", allScores[0], scores[0])
+	}
+}
+
+func TestGetScoresByProfessorNameLike(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	allScores, err := db.GetScoresByProfessorNameLike(professors[0].FullName[:5])
+	if err != nil {
+		t.Error(err)
+	}
+	if !cmp.Equal(allScores[0], scores[0]) {
+		t.Errorf("got %v, want %v", allScores[0], scores[0])
+	}
+}
+
+func TestGetScoresByCourseCode(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	allScores, err := db.GetScoresByCourseCode("S209")
+	if err != nil {
+		t.Error(err)
+	}
+	if !cmp.Equal(allScores[0], scores[0]) {
+		t.Errorf("got %v, want %v", allScores[0], scores[0])
+	}
+}
+
+func TestGetScoresByCourseLike(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	allScores, err := db.GetScoresByCourseCodeLike("S2")
 	if err != nil {
 		t.Error(err)
 	}
@@ -298,7 +343,7 @@ func TestGetScoresByCourse(t *testing.T) {
 }
 
 func TestGetLastScore(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +362,7 @@ func TestGetLastScore(t *testing.T) {
 }
 
 func TestGradeCourseProfessor(t *testing.T) {
-	db, err := initDb()
+	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}

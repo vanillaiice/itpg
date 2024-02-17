@@ -3,6 +3,7 @@ package itpg
 import (
 	"encoding/json"
 	"fmt"
+	"itpg/db"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,8 +11,62 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var professorNames = []string{
+	"Great Teacher Onizuka",
+	"Pippy Peepee Poopypants",
+	"Professor Oak",
+}
+var courses = []*db.Course{
+	{Code: "S209", Name: "How to replace head gaskets"},
+	{Code: "CN9A", Name: "Controlling the Anti Lag System"},
+	{Code: "AE86", Name: "How to beat any car"},
+}
+var professors = []*db.Professor{}
+var scores = []*db.Score{}
+
+func initDB(path ...string) (*db.DB, error) {
+	if len(path) == 0 {
+		path = append(path, ":memory:")
+	}
+	db, err := db.NewDB(path[0])
+	if err != nil {
+		return nil, err
+	}
+
+	for _, c := range courses {
+		_, err := db.AddCourse(c.Code, c.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, p := range professorNames {
+		_, err := db.AddProfessor(p)
+		if err != nil {
+			return nil, err
+		}
+	}
+	professors, err = db.GetAllProfessors()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(professors) && i < len(courses); i++ {
+		_, err := db.AddCourseProfessor(professors[i].UUID, courses[i].Code)
+		if err != nil {
+			return nil, err
+		}
+	}
+	scores, err = db.GetAllScores()
+	if err != nil {
+		return nil, err
+	}
+
+	return db, err
+}
+
 func dbInit() (err error) {
-	db, err = initDb()
+	DataDB, err = initDB()
 	if err != nil {
 		return
 	}
@@ -32,8 +87,8 @@ func TestServerAddCourse(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	if rr.Body.String() != success.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != Success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }
 
@@ -51,8 +106,8 @@ func TestServerAddProfessor(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	if rr.Body.String() != success.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != Success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }
 
@@ -70,8 +125,8 @@ func TestServerAddCourseProfessor(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	if rr.Body.String() != success.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != Success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }
 
@@ -89,8 +144,8 @@ func TestServerRemoveCourse(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusInternalServerError)
 	}
-	if rr.Body.String() != errInternal.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != ErrInternal.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }
 
@@ -108,8 +163,8 @@ func TestServerRemoveCourseForce(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	if rr.Body.String() != success.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != Success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }
 
@@ -127,8 +182,8 @@ func TestServerRemoveCourseProfessor(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	if rr.Body.String() != success.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != Success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }
 
@@ -146,8 +201,8 @@ func TestServerRemoveProfessor(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusInternalServerError)
 	}
-	if rr.Body.String() != errInternal.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != ErrInternal.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }
 
@@ -165,8 +220,8 @@ func TestServerRemoveProfessorForce(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	if rr.Body.String() != success.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != Success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }
 
@@ -190,8 +245,8 @@ func TestServerGetAllCourses(t *testing.T) {
 	if lresp == 0 {
 		t.Errorf("got len = 0, want %s", "> 0")
 	}
-	if resp.Code != successCode {
-		t.Errorf("got %d, want %d", resp.Code, successCode)
+	if resp.Code != SuccessCode {
+		t.Errorf("got %d, want %d", resp.Code, SuccessCode)
 	}
 }
 
@@ -239,7 +294,7 @@ func TestServerGetAllScores(t *testing.T) {
 	}
 }
 
-func TestServerGetCoursesByProfessor(t *testing.T) {
+func TestServerGetCoursesByProfessorUUID(t *testing.T) {
 	err := dbInit()
 	if err != nil {
 		t.Fatal(err)
@@ -250,7 +305,7 @@ func TestServerGetCoursesByProfessor(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/courses/{uuid}", GetCoursesByProfessor)
+	router.HandleFunc("/courses/{uuid}", GetCoursesByProfessorUUID)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -263,7 +318,7 @@ func TestServerGetCoursesByProfessor(t *testing.T) {
 	}
 }
 
-func TestServerGetProfessorsByCourse(t *testing.T) {
+func TestServerGetProfessorsByCourseCode(t *testing.T) {
 	err := dbInit()
 	if err != nil {
 		t.Fatal(err)
@@ -274,7 +329,7 @@ func TestServerGetProfessorsByCourse(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/professors/{code}", GetProfessorsByCourse)
+	router.HandleFunc("/professors/{code}", GetProfessorsByCourseCode)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -287,7 +342,7 @@ func TestServerGetProfessorsByCourse(t *testing.T) {
 	}
 }
 
-func TestServerGetScoresByProfessor(t *testing.T) {
+func TestServerGetScoresByProfessorUUID(t *testing.T) {
 	err := dbInit()
 	if err != nil {
 		t.Fatal(err)
@@ -298,7 +353,7 @@ func TestServerGetScoresByProfessor(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/prof/{uuid}", GetScoresByProfessor)
+	router.HandleFunc("/scores/prof/{uuid}", GetScoresByProfessorUUID)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -311,7 +366,55 @@ func TestServerGetScoresByProfessor(t *testing.T) {
 	}
 }
 
-func TestServerGetScoresByCourse(t *testing.T) {
+func TestServerGetScoresByProfessorName(t *testing.T) {
+	err := dbInit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/name/%s", professors[0].FullName), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	router := mux.NewRouter()
+	router.HandleFunc("/scores/name/{name}", GetScoresByProfessorName)
+	router.ServeHTTP(rr, r)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
+	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp != 1 {
+		t.Errorf("got %d, want %d", lresp, 1)
+	}
+}
+
+func TestServerGetScoresByProfessorNameLike(t *testing.T) {
+	err := dbInit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/namelike/%s", professors[0].FullName[:5]), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	router := mux.NewRouter()
+	router.HandleFunc("/scores/namelike/{name}", GetScoresByProfessorNameLike)
+	router.ServeHTTP(rr, r)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
+	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp != 1 {
+		t.Errorf("got %d, want %d", lresp, 1)
+	}
+}
+
+func TestServerGetScoresByCourseCode(t *testing.T) {
 	err := dbInit()
 	if err != nil {
 		t.Fatal(err)
@@ -322,7 +425,31 @@ func TestServerGetScoresByCourse(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/course/{code}", GetScoresByCourse)
+	router.HandleFunc("/scores/course/{code}", GetScoresByCourseCode)
+	router.ServeHTTP(rr, r)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
+	}
+	resp := &Response{}
+	json.NewDecoder(rr.Body).Decode(&resp)
+	lresp := len(resp.Message.([]interface{}))
+	if lresp != 1 {
+		t.Errorf("got %d, want %d", lresp, 1)
+	}
+}
+
+func TestServerGetScoresByCourseCodeLike(t *testing.T) {
+	err := dbInit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/courselike/%s", courses[0].Code[:3]), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	router := mux.NewRouter()
+	router.HandleFunc("/scores/courselike/{code}", GetScoresByCourseCodeLike)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -349,7 +476,7 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
-	if rr.Body.String() != success.String() {
-		t.Errorf("got %s, want %s", rr.Body.String(), success.String())
+	if rr.Body.String() != Success.String() {
+		t.Errorf("got %s, want %s", rr.Body.String(), Success.String())
 	}
 }

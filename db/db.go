@@ -1,4 +1,4 @@
-package itpg
+package db
 
 import (
 	"database/sql"
@@ -25,15 +25,15 @@ type Course struct {
 // Professor represents a professor with surname, middle name, and name.
 type Professor struct {
 	UUID     string `json:"uuid"`
-	FullName string `json:"fullName"`
+	FullName string `json:"name"`
 }
 
 // Score represents a score with professor ID, course code, and the score value.
 type Score struct {
-	ProfessorUUID string  `json:"uuid"`
-	ProfessorName string  `json:"fullName"`
-	CourseCode    string  `json:"code"`
-	CourseName    string  `json:"name"`
+	ProfessorUUID string  `json:"profUUID"`
+	ProfessorName string  `json:"profName"`
+	CourseCode    string  `json:"courseCode"`
+	CourseName    string  `json:"courseName"`
 	Score         float32 `json:"score"`
 	Count         int     `json:"count"`
 }
@@ -189,7 +189,7 @@ func (db *DB) GetAllScores() (scores []*Score, err error) {
 }
 
 // GetCoursesByProfessor retrieves all courses associated with a professor from the database.
-func (db *DB) GetCoursesByProfessor(professorUUID string) (courses []*Course, err error) {
+func (db *DB) GetCoursesByProfessorUUID(professorUUID string) (courses []*Course, err error) {
 	stmt := fmt.Sprintf("SELECT code, name FROM Courses JOIN Scores ON Courses.code = Scores.coursecode WHERE Scores.professoruuid = %q", professorUUID)
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -208,7 +208,7 @@ func (db *DB) GetCoursesByProfessor(professorUUID string) (courses []*Course, er
 }
 
 // GetProfessorsByCourse retrieves all professors associated with a course from the database.
-func (db *DB) GetProfessorsByCourse(courseCode string) (professors []*Professor, err error) {
+func (db *DB) GetProfessorsByCourseCode(courseCode string) (professors []*Professor, err error) {
 	stmt := fmt.Sprintf("SELECT uuid, fullname FROM Professors JOIN Scores ON Professors.uuid = Scores.professoruuid WHERE Scores.coursecode = %q", courseCode)
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -226,8 +226,8 @@ func (db *DB) GetProfessorsByCourse(courseCode string) (professors []*Professor,
 	return
 }
 
-// GetScoresByProfessor retrieves all scores associated with a professor from the database.
-func (db *DB) GetScoresByProfessor(professorUUID string) (scores []*Score, err error) {
+// GetScoresByProfessorUUID retrieves all scores associated with a professor's UUID from the database.
+func (db *DB) GetScoresByProfessorUUID(professorUUID string) (scores []*Score, err error) {
 	stmt := fmt.Sprintf("SELECT Professors.fullname, Courses.name, Scores.coursecode, IFNULL(Scores.score, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Scores.professoruuid = %q", NullFloat64, professorUUID)
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -247,8 +247,52 @@ func (db *DB) GetScoresByProfessor(professorUUID string) (scores []*Score, err e
 	return
 }
 
+// rename global vars
+
+// GetScoresByProfessorName retrieves all scores associated with a professor's name from the database.
+func (db *DB) GetScoresByProfessorName(professorName string) (scores []*Score, err error) {
+	stmt := fmt.Sprintf("SELECT Courses.name, Scores.coursecode, Scores.professoruuid, IFNULL(Scores.score, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Professors.fullname LIKE %q", NullFloat64, fmt.Sprintf("%%%s%%", professorName))
+	rows, err := db.db.Query(stmt)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	var professorUUID, courseCode, courseName string
+	var score float64
+	var count int
+	for rows.Next() {
+		err = rows.Scan(&courseName, &courseCode, &professorUUID, &score, &count)
+		if err != nil {
+			return nil, err
+		}
+		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorName, CourseCode: courseCode, CourseName: courseName, Score: float32(score), Count: count})
+	}
+	return
+}
+
+// GetScoresByProfessorNameLike retrieves scores for courses taught by professors whose names contain the given search string.
+func (db *DB) GetScoresByProfessorNameLike(professorNameLike string) (scores []*Score, err error) {
+	stmt := fmt.Sprintf("SELECT Professors.fullname, Courses.name, Scores.coursecode, Scores.professoruuid, IFNULL(Scores.score, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Professors.fullname LIKE %q", NullFloat64, fmt.Sprintf("%%%s%%", professorNameLike))
+	rows, err := db.db.Query(stmt)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	var professorUUID, professorName, courseCode, courseName string
+	var score float64
+	var count int
+	for rows.Next() {
+		err = rows.Scan(&professorName, &courseName, &courseCode, &professorUUID, &score, &count)
+		if err != nil {
+			return nil, err
+		}
+		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorName, CourseCode: courseCode, CourseName: courseName, Score: float32(score), Count: count})
+	}
+	return
+}
+
 // GetScoresByCourse retrieves all scores associated with a course from the database.
-func (db *DB) GetScoresByCourse(courseCode string) (scores []*Score, err error) {
+func (db *DB) GetScoresByCourseCode(courseCode string) (scores []*Score, err error) {
 	stmt := fmt.Sprintf("SELECT Professors.fullname, Courses.name, Scores.professoruuid, IFNULL(Scores.score, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Scores.coursecode = %q", NullFloat64, courseCode)
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -260,6 +304,27 @@ func (db *DB) GetScoresByCourse(courseCode string) (scores []*Score, err error) 
 	var count int
 	for rows.Next() {
 		err = rows.Scan(&professorFullName, &courseName, &professorUUID, &score, &count)
+		if err != nil {
+			return nil, err
+		}
+		scores = append(scores, &Score{ProfessorUUID: professorUUID, ProfessorName: professorFullName, CourseCode: courseCode, CourseName: courseName, Score: float32(score), Count: count})
+	}
+	return
+}
+
+// GetScoresByCourseLike retrieves all scores associated with a course from the database.
+func (db *DB) GetScoresByCourseCodeLike(courseCodeLike string) (scores []*Score, err error) {
+	stmt := fmt.Sprintf("SELECT Professors.fullname, Courses.name, Scores.coursecode, Scores.professoruuid, IFNULL(Scores.score, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professoruuid = Professors.uuid LEFT JOIN Courses ON Scores.coursecode = Courses.code WHERE Scores.coursecode LIKE %q", NullFloat64, fmt.Sprintf("%%%s%%", courseCodeLike))
+	rows, err := db.db.Query(stmt)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	var professorUUID, professorFullName, courseCode, courseName string
+	var score float64
+	var count int
+	for rows.Next() {
+		err = rows.Scan(&professorFullName, &courseName, &courseCode, &professorUUID, &score, &count)
 		if err != nil {
 			return nil, err
 		}

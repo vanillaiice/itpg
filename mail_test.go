@@ -5,7 +5,7 @@ import (
 )
 
 func TestInitCreds(t *testing.T) {
-	if err := initCreds("test.env"); err != nil {
+	if err := InitCreds("test.env"); err != nil {
 		t.Error(err)
 	}
 }

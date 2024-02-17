@@ -1,6 +1,7 @@
 package itpg
 
 import (
+	"itpg/db"
 	"log"
 	"net/http"
 	"time"
@@ -22,28 +23,28 @@ type Handler struct {
 	Method  string                                   // Method specifies the HTTP method associated with the handler.
 }
 
-// db represents a pointer to a database connection,
+// DataDB represents a pointer to a database connection,
 // storing professor names, courses codes and names,
 // and professor scores.
-var db *DB
+var DataDB *db.DB
 
-// userState stores the state of all users.
-var userState pinterface.IUserState
+// UserState stores the state of all users.
+var UserState pinterface.IUserState
 
-// cookieTimeout represents the duration after which a session cookie expires.
-const cookieTimeout = 30 * time.Minute
+// CookieTimeout represents the duration after which a session cookie expires.
+const CookieTimeout = 30 * time.Minute
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
 func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailDomains []string) (err error) {
-	if err = initCreds(envPath); err != nil {
+	if err = InitCreds(envPath); err != nil {
 		log.Fatal(err)
 	}
 
-	db, err = NewDB(dbPath)
+	DataDB, err = db.NewDB(dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer DataDB.Close()
 
 	perm, err := permissionbolt.NewWithConf(usersDbPath)
 	if err != nil {
@@ -57,11 +58,11 @@ func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailD
 
 	perm.SetDenyFunction(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		errPermissionDenied.WriteJSON(w)
+		ErrPermissionDenied.WriteJSON(w)
 	})
 
-	userState = perm.UserState()
-	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
+	UserState = perm.UserState()
+	UserState.SetCookieTimeout(int64(CookieTimeout.Seconds()))
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
@@ -71,15 +72,15 @@ func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailD
 
 	lmt := tollbooth.NewLimiter(10, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Minute})
 	lmt.SetMessageContentType("application/json")
-	lmt.SetMessage(errRequestLimitReached.String())
+	lmt.SetMessage(ErrRequestLimitReached.String())
 	lmt.SetOnLimitReached(func(w http.ResponseWriter, r *http.Request) {
-		errRequestLimitReached.WriteJSON(w)
+		ErrRequestLimitReached.WriteJSON(w)
 	})
 
 	adminHandlers := []Handler{
 		{"/courses/add", AddCourse, http.MethodPost},
-		{"/courses/addprof", AddCourseProfessor, http.MethodPost},
 		{"/professors/add", AddProfessor, http.MethodPost},
+		{"/courses/addprof", AddCourseProfessor, http.MethodPost},
 		{"/courses/remove", RemoveCourse, http.MethodDelete},
 		{"/courses/removeforce", RemoveCourseForce, http.MethodDelete},
 		{"/courses/removeprof", RemoveCourseProfessor, http.MethodDelete},
@@ -99,10 +100,13 @@ func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailD
 		{"/courses", GetAllCourses, http.MethodGet},
 		{"/professors", GetAllProfessors, http.MethodGet},
 		{"/scores", GetAllScores, http.MethodGet},
-		{"/courses/{uuid}", GetCoursesByProfessor, http.MethodGet},
-		{"/professors/{code}", GetProfessorsByCourse, http.MethodGet},
-		{"/scores/prof/{uuid}", GetScoresByProfessor, http.MethodGet},
-		{"/scores/course/{code}", GetScoresByCourse, http.MethodGet},
+		{"/courses/{uuid}", GetCoursesByProfessorUUID, http.MethodGet},
+		{"/professors/{code}", GetProfessorsByCourseCode, http.MethodGet},
+		{"/scores/prof/{uuid}", GetScoresByProfessorUUID, http.MethodGet},
+		{"/scores/name/{name}", GetScoresByProfessorName, http.MethodGet},
+		{"/scores/namelike/{name}", GetScoresByProfessorNameLike, http.MethodGet},
+		{"/scores/course/{code}", GetScoresByCourseCode, http.MethodGet},
+		{"/scores/courselike/{code}", GetScoresByCourseCodeLike, http.MethodGet},
 		{"/login", Login, http.MethodPost},
 		{"/register", Register, http.MethodPost},
 		{"/confirm", Confirm, http.MethodPost},
