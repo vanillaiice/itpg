@@ -2,7 +2,7 @@
 
 Backend for itpg, which is a platform where students can grade their professors after taking courses.
 This permits future students to make more informed decisions when choosing their courses.
-This repository handles http requests, database transactions, and user state management..
+This repository handles http requests, database transactions, and user state management.
 
 # Author
 
