@@ -302,19 +302,27 @@ func GetScoresByCourseCodeLike(w http.ResponseWriter, r *http.Request) {
 
 // GradeCourseProfessor handles the HTTP request to grade a professor for a specific course.
 func GradeCourseProfessor(w http.ResponseWriter, r *http.Request) {
-	professorUUID, courseCode, grade := r.FormValue("uuid"), r.FormValue("code"), r.FormValue("grade")
-	if err := isEmptyStr(w, professorUUID, grade, courseCode); err != nil {
+	professorUUID, courseCode := r.FormValue("uuid"), r.FormValue("code")
+	gTeaching := r.FormValue("gTeaching")
+	gCoursework := r.FormValue("gCoursework")
+	gLearning := r.FormValue("gLearning")
+	if err := isEmptyStr(w, professorUUID, courseCode, gTeaching, gCoursework, gLearning); err != nil {
 		return
 	}
 
-	fgrade, err := strconv.ParseFloat(r.FormValue("grade"), 32)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
-		return
+	grades := [3]string{gTeaching, gCoursework, gLearning}
+	fgrades := [3]float32{}
+	for i, g := range grades {
+		fgrade, err := strconv.ParseFloat(g, 32)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			ErrInternal.WriteJSON(w)
+			return
+		}
+		fgrades[i] = float32(fgrade)
 	}
 
-	if _, err = DataDB.GradeCourseProfessor(professorUUID, courseCode, float32(fgrade)); err != nil {
+	if _, err := DataDB.GradeCourseProfessor(professorUUID, courseCode, fgrades); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		ErrInternal.WriteJSON(w)
 		return

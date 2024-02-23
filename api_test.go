@@ -371,7 +371,7 @@ func TestServerGetScoresByProfessorName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/name/%s", professors[0].FullName), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/name/%s", professors[0].Name), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +395,7 @@ func TestServerGetScoresByProfessorNameLike(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/namelike/%s", professors[0].FullName[:5]), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/namelike/%s", professors[0].Name[:5]), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -467,7 +467,7 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := http.NewRequest("POST", fmt.Sprintf("/courses/grade?uuid=%s&code=%s&grade=3.5", professors[0].UUID, courses[0].Code), nil)
+	r, err := http.NewRequest("POST", fmt.Sprintf("/courses/grade?uuid=%s&code=%s&gTeaching=5&gCoursework=4&gLearning=3", professors[0].UUID, courses[0].Code), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
