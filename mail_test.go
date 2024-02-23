@@ -11,7 +11,7 @@ func TestInitCreds(t *testing.T) {
 }
 
 func TestSendMail(t *testing.T) {
-	if err := initCreds("test.env"); err != nil {
+	if err := InitCreds("test.env"); err != nil {
 		t.Fatal(err)
 	}
 	if err := SendMail("Takumi Fujiwara", "takumi@fuji.ae", "iamsuperduperfastondownhills"); err != nil {
