@@ -11,6 +11,7 @@ var courses = []*Course{
 	{Code: "S209", Name: "How to replace head gaskets"},
 	{Code: "CN9A", Name: "Controlling the Anti Lag System"},
 	{Code: "AE86", Name: "How to beat any car"},
+	{Code: "FD3S", Name: "How to BRAAAP"},
 }
 var professors = []*Professor{}
 var scores = []*Score{}
@@ -19,6 +20,7 @@ var professorNames = []string{
 	"Great Teacher Onizuka",
 	"Pippy Peepee Poopypants",
 	"Professor Oak",
+	"Takahashi Keisuke",
 }
 
 func initDB(path ...string) (*DB, error) {
@@ -288,7 +290,7 @@ func TestGetScoresByProfessorName(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allScores, err := db.GetScoresByProfessorName(professors[0].FullName)
+	allScores, err := db.GetScoresByProfessorName(professors[0].Name)
 	if err != nil {
 		t.Error(err)
 	}
@@ -303,7 +305,7 @@ func TestGetScoresByProfessorNameLike(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allScores, err := db.GetScoresByProfessorNameLike(professors[0].FullName[:5])
+	allScores, err := db.GetScoresByProfessorNameLike(professors[0].Name[:5])
 	if err != nil {
 		t.Error(err)
 	}
@@ -348,16 +350,17 @@ func TestGetLastScore(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	_, err = db.GradeCourseProfessor(professors[1].UUID, "CN9A", 5.00)
+	profScores := [3]float32{5.00, 4.00, 3.00}
+	_, err = db.GradeCourseProfessor(professors[1].UUID, "CN9A", profScores)
 	if err != nil {
 		t.Error(err)
 	}
-	score, err := getLastScore(db.db, professors[1].UUID, "CN9A")
+	lastScores, err := lastScores(db.db, professors[1].UUID, "CN9A")
 	if err != nil {
 		t.Error(err)
 	}
-	if score != 5.00 {
-		t.Errorf("got %.2f, want %.2f", score, 5.00)
+	if !cmp.Equal(profScores, lastScores) {
+		t.Errorf("got %.2f, want %.2f", lastScores, profScores)
 	}
 }
 
@@ -367,15 +370,43 @@ func TestGradeCourseProfessor(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	n, err := db.GradeCourseProfessor(professors[1].UUID, "CN9A", 4.2)
+	profScores := [3]float32{5.00, 4.00, 3.00}
+	n, err := db.GradeCourseProfessor(professors[1].UUID, "CN9A", profScores)
 	if err != nil {
 		t.Error(err)
 	}
 	if n != 1 {
 		t.Error("expected 1 row to be affected")
 	}
-	n, err = db.GradeCourseProfessor("1", "GC8F", 5)
+	n, err = db.GradeCourseProfessor("1", "GC8F", profScores)
 	if err == nil {
 		t.Error("expected failure")
+	}
+}
+
+func TestExecStmt(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = execStmt(db.db, "SELECT * FROM Courses")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAverageScore(t *testing.T) {
+	scores := []float32{5, 4, 3}
+	avgScore := averageScore(scores...)
+	expected := float32((5 + 4 + 3) / 3)
+	if avgScore != float32(expected) {
+		t.Errorf("got %f, want %f", avgScore, expected)
+	}
+	scores = []float32{5, NullFloat64, 3}
+	expected = NullFloat64
+	avgScore = averageScore(scores...)
+	if avgScore != NullFloat64 {
+		t.Errorf("got %f, want %f", avgScore, expected)
 	}
 }
