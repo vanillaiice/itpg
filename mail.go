@@ -36,7 +36,7 @@ func InitCredsSMTP(envPath string, SMTPS bool) (err error) {
 
 	keys := []*string{&SMTPHost, &SMTPHost, &MailFrom}
 
-	SendMailFunc = SendMailSMTPS
+	SendMailFunc = SendMailSMTP
 
 	if SMTPS {
 		SendMailFunc = SendMailSMTPS
