@@ -36,7 +36,7 @@ func TestSendMailSMTP(t *testing.T) {
 	SMTPURL = fmt.Sprintf("127.0.0.1:%d", server.PortNumber())
 	MailFrom = "testing@test.com"
 
-	if err := SendMailSMTP("Takumi Fujiwara", "takumi@fuji.ae", "iamsuperduperfastondownhills"); err != nil {
+	if err := SendMailSMTP("Takumi Fujiwara", "takumi@fuji.ae", "iamsuperduperfastondownhills"); err.Error() != "250 Received" {
 		t.Error(err)
 	}
 }

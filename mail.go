@@ -70,8 +70,32 @@ func SendMailSMTPS(mailToUsername, mailToAddress, confirmationCode string) error
 // This should only be used when the SMTP server and the itpg-backend
 // binary are running on the same machine.
 func SendMailSMTP(mailToUsername, mailToAddress, confirmationCode string) error {
+	conn, err := smtp.Dial(SMTPURL)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if err = conn.Mail(MailFrom); err != nil {
+		return err
+	}
+
+	if err = conn.Rcpt(mailToAddress); err != nil {
+		return err
+	}
+
+	w, err := conn.Data()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
 	message := makeMessage(mailToAddress, mailToUsername, confirmationCode)
-	return smtp.SendMail(SMTPURL, nil, MailFrom, []string{mailToAddress}, message)
+	if _, err := w.Write(message); err != nil {
+		return err
+	}
+
+	return conn.Quit()
 }
 
 // makeMessage creates the email message to be sent.
