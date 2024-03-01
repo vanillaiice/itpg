@@ -237,6 +237,17 @@ func (db *DB) GetProfessorsByCourseCode(code string) (professors []*Professor, e
 	return
 }
 
+// GetProfessorUUIDByName retrieves the UUID of the professor that matches the specified name.
+func (db *DB) GetProfessorUUIDByName(name string) (uuid string, err error) {
+	stmt := fmt.Sprintf("SELECT uuid FROM Professors WHERE name = %q", name)
+	row := db.db.QueryRow(stmt)
+	err = row.Scan(&uuid)
+	if err != nil {
+		return
+	}
+	return
+}
+
 // GetScoresByProfessorUUID retrieves all scores associated with a professor's UUID from the database.
 func (db *DB) GetScoresByProfessorUUID(UUID string) (scores []*Score, err error) {
 	stmt := fmt.Sprintf("SELECT Professors.name, Scores.course_code, Courses.name, IFNULL(Scores.score_teaching, %d), IFNULL(Scores.score_coursework, %d), IFNULL(Scores.score_learning, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid LEFT JOIN Courses ON Scores.course_code = Courses.code WHERE Scores.professor_uuid = %q", NullFloat64, NullFloat64, NullFloat64, UUID)

@@ -269,6 +269,18 @@ func TestGetProfessorsByCourseCode(t *testing.T) {
 	}
 }
 
+func TestGetProfessorUUIDByName(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.GetProfessorUUIDByName(professors[0].Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetScoresByProfessorUUID(t *testing.T) {
 	db, err := initDB()
 	if err != nil {

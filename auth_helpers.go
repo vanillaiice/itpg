@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/zeebo/xxh3"
 )
 
 // isEmptyStr checks if any of the provided strings are empty.
@@ -149,11 +151,16 @@ func checkUserAlreadyGradedMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		courseCode := r.FormValue("code")
-		if err = isEmptyStr(w, courseCode); err != nil {
+		uuid := r.FormValue("uuid")
+		if err = isEmptyStr(w, courseCode, uuid); err != nil {
 			return
 		}
 
-		if _, err = UserState.Users().Get(username, courseCode); err == nil {
+		hasher := xxh3.New()
+		hasher.WriteString(courseCode + uuid)
+		hash := hasher.Sum64()
+
+		if _, err = UserState.Users().Get(username, fmt.Sprint(hash)); err == nil {
 			w.WriteHeader(http.StatusForbidden)
 			ErrCourseGraded.WriteJSON(w)
 			return
@@ -161,6 +168,10 @@ func checkUserAlreadyGradedMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		next.ServeHTTP(w, r)
 
-		UserState.Users().Set(username, courseCode, "")
+		if err = UserState.Users().Set(username, fmt.Sprint(hash), ""); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			ErrInternal.WriteJSON(w)
+			return
+		}
 	}
 }

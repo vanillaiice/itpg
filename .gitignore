@@ -9,3 +9,6 @@ Makefile
 
 # Ignore .env files
 *.env
+
+# Ignore Husky hooks
+.husky

@@ -11,7 +11,9 @@ import (
 
 // SMTP server configuration details
 var (
-	// SMTPHost is the host used for SMTP communication
+	// MailSendFunc is the function used to send mails.
+	SendMailFunc func(mailToUsername, mailToAddress, confirmationCode string) error
+	// SMTPHost is the host used for SMTP communication.
 	SMTPHost string
 	// SMTPPort is the port number used for SMTP communication.
 	SMTPPort string
@@ -25,20 +27,31 @@ var (
 	Password string
 )
 
-// InitCreds initializes SMTP credentials from the environment variables defined
+// InitCredsSMTP initializes SMTP credentials from the environment variables defined
 // in the provided .env file path.
-func InitCreds(envPath string) (err error) {
+func InitCredsSMTP(envPath string, SMTPS bool) (err error) {
 	if err = godotenv.Load(envPath); err != nil {
 		return err
 	}
+
+	keys := []*string{&SMTPHost, &SMTPHost, &MailFrom}
+
+	SendMailFunc = SendMailSMTPS
+
+	if SMTPS {
+		SendMailFunc = SendMailSMTPS
+		Username = os.Getenv("USERNAME")
+		Password = os.Getenv("PASSWORD")
+		keys = append(keys, &Username, &Password)
+	}
+
 	SMTPHost = os.Getenv("SMTP_HOST")
 	SMTPPort = os.Getenv("SMTP_PORT")
 	MailFrom = os.Getenv("MAIL_FROM")
-	Username = os.Getenv("USERNAME")
-	Password = os.Getenv("PASSWORD")
-	for _, s := range []string{SMTPHost, SMTPPort, MailFrom, Username, Password} {
-		if s == "" {
-			return NewErrEmptyValueFor(s).Error()
+
+	for _, s := range keys {
+		if *s == "" {
+			return ErrEmptyValue.Error()
 		}
 	}
 	SMTPURL = fmt.Sprintf("%s:%s", SMTPHost, SMTPPort)
@@ -46,12 +59,22 @@ func InitCreds(envPath string) (err error) {
 	return
 }
 
-// SendMail sends an email to the specified recipient containing the provided
-// confirmation code for user registration.
-func SendMail(mailToUsername, mailToAddress, confirmationCode string) error {
+// SendMailSMTPS sends an email using SMTP over TLS, with SMTP authentication.
+func SendMailSMTPS(mailToUsername, mailToAddress, confirmationCode string) error {
 	auth := smtp.PlainAuth("", Username, Password, SMTPHost)
-
-	message := []byte(fmt.Sprintf("To: %s\r\nFrom: %s\r\nDate: %s\r\nSubject: ITPG Account Confirmation Code\r\n\r\nHello %s,\r\n\nYour confirmation code: %s\r\n\nUse this code to complete your registration on itpg.cc.\r\n\nThanks,\r\nITPG Team\r\n\r\nThis is an auto-generated email. Please do not reply to it.\r\n", mailToAddress, MailFrom, time.Now().Format(time.RFC1123Z), mailToUsername, confirmationCode))
-
+	message := makeMessage(mailToAddress, mailToUsername, confirmationCode)
 	return smtp.SendMail(SMTPURL, auth, MailFrom, []string{mailToAddress}, message)
+}
+
+// SendMailSMTP sends an email using SMTP without authentication.
+// This should only be used when the SMTP server and the itpg-backend
+// binary are running on the same machine.
+func SendMailSMTP(mailToUsername, mailToAddress, confirmationCode string) error {
+	message := makeMessage(mailToAddress, mailToUsername, confirmationCode)
+	return smtp.SendMail(SMTPURL, nil, MailFrom, []string{mailToAddress}, message)
+}
+
+// makeMessage creates the email message to be sent.
+func makeMessage(mailToAddress, mailToUsername, confirmationCode string) []byte {
+	return []byte(fmt.Sprintf("To: %s\r\nFrom: %s\r\nDate: %s\r\nSubject: ITPG Account Confirmation Code\r\n\r\nHello %s,\r\n\nYour confirmation code: %s\r\n\nUse this code to complete your registration on itpg.cc.\r\n\nThanks,\r\nITPG Team\r\n\r\nThis is an auto-generated email. Please do not reply to it.\r\n", mailToAddress, MailFrom, time.Now().Format(time.RFC1123Z), mailToUsername, confirmationCode))
 }

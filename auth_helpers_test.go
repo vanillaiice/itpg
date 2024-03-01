@@ -283,7 +283,7 @@ func TestCheckUserAlreadyGradedMiddleware(t *testing.T) {
 	middleware := checkUserAlreadyGradedMiddleware(handler)
 
 	body, _ := json.Marshal(creds)
-	r := httptest.NewRequest(http.MethodPost, "/grade?code="+courses[0].Code, bytes.NewReader(body))
+	r := httptest.NewRequest(http.MethodPost, "/grade?code="+courses[0].Code+"&uuid="+professors[0].UUID, bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
 	UserState.AddUser(creds.Email, creds.Password, "")

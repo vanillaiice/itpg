@@ -16,15 +16,15 @@ import (
 	"github.com/xyproto/pinterface"
 )
 
-// Handler represents a struct containing information about an HTTP handler.
-type Handler struct {
+// HandlerInfo represents a struct containing information about an HTTP handler.
+type HandlerInfo struct {
 	Path    string                                   // Path specifies the URL pattern for which the handler is responsible.
 	Handler func(http.ResponseWriter, *http.Request) // Handler is the function that will be called to handle HTTP requests.
 	Method  string                                   // Method specifies the HTTP method associated with the handler.
 }
 
 // DataDB represents a pointer to a database connection,
-// storing professor names, courses codes and names,
+// storing professor names, course codes and names,
 // and professor scores.
 var DataDB *db.DB
 
@@ -35,8 +35,8 @@ var UserState pinterface.IUserState
 const CookieTimeout = 30 * time.Minute
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
-func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailDomains []string) (err error) {
-	if err = InitCreds(envPath); err != nil {
+func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailDomains []string, useSMTP, useHTTP bool, certFile, keyFile string) (err error) {
+	if err = InitCredsSMTP(envPath, !useSMTP); err != nil {
 		log.Fatal(err)
 	}
 
@@ -77,7 +77,7 @@ func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailD
 		ErrRequestLimitReached.WriteJSON(w)
 	})
 
-	adminHandlers := []Handler{
+	adminHandlers := []HandlerInfo{
 		{"/courses/add", AddCourse, http.MethodPost},
 		{"/professors/add", AddProfessor, http.MethodPost},
 		{"/courses/addprof", AddCourseProfessor, http.MethodPost},
@@ -87,7 +87,7 @@ func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailD
 		{"/professors/remove", RemoveProfessor, http.MethodDelete},
 		{"/professors/removeforce", RemoveProfessorForce, http.MethodDelete},
 	}
-	userHandlers := []Handler{
+	userHandlers := []HandlerInfo{
 		{"/courses/grade", GradeCourseProfessor, http.MethodPost},
 		{"/refresh", RefreshCookie, http.MethodPost},
 		{"/logout", Logout, http.MethodPost},
@@ -96,7 +96,7 @@ func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailD
 		{"/greet", Greet, http.MethodGet},
 		{"/ping", Ping, http.MethodGet},
 	}
-	publicHandlers := []Handler{
+	publicHandlers := []HandlerInfo{
 		{"/courses", GetAllCourses, http.MethodGet},
 		{"/professors", GetAllProfessors, http.MethodGet},
 		{"/scores", GetAllScores, http.MethodGet},
@@ -138,6 +138,11 @@ func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailD
 	n.Use(tollbooth_negroni.LimitHandler(lmt))
 	n.UseHandler(router)
 
-	log.Printf("itpg-backend listening on port %q\n", port)
-	return http.ListenAndServe(":"+port, n)
+	if !useHTTP {
+		log.Printf("itpg-backend listening on port %s with HTTPS\n", port)
+		return http.ListenAndServeTLS(":"+port, certFile, keyFile, n)
+	} else {
+		log.Printf("itpg-backend listening on port %s\n", port)
+		return http.ListenAndServe(":"+port, n)
+	}
 }

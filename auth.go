@@ -59,7 +59,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		ErrGenCode.WriteJSON(w)
 		return
 	}
-	if err = SendMail(creds.Email, creds.Email, confirmationCode.String()); err != nil {
+	if err = SendMailFunc(creds.Email, creds.Email, confirmationCode.String()); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		ErrSendMail.WriteJSON(w)
 		return
@@ -96,7 +96,7 @@ func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 		ErrGenCode.WriteJSON(w)
 		return
 	}
-	if err = SendMail(creds.Email, creds.Email, confirmationCode.String()); err != nil {
+	if err = SendMailFunc(creds.Email, creds.Email, confirmationCode.String()); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		ErrSendMail.WriteJSON(w)
 		return
@@ -147,13 +147,17 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	UserState.Users().Set(
-		creds.Email,
-		"cookie-expiry",
-		time.Now().Add(CookieTimeout).Format(time.UnixDate),
-	)
+	if err = UserState.Users().Set(creds.Email, "cookie-expiry", time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		ErrInternal.WriteJSON(w)
+		return
+	}
 
-	UserState.Login(w, creds.Email)
+	if err = UserState.Login(w, creds.Email); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		ErrInternal.WriteJSON(w)
+		return
+	}
 
 	Success.WriteJSON(w)
 }
@@ -193,13 +197,17 @@ func RefreshCookie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	UserState.Users().Set(
-		username,
-		"cookie-expiry",
-		time.Now().Add(CookieTimeout).Format(time.UnixDate),
-	)
+	if err = UserState.Users().Set(username, "cookie-expiry", time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		ErrInternal.WriteJSON(w)
+		return
+	}
 
-	UserState.Login(w, username)
+	if err = UserState.Login(w, username); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		ErrInternal.WriteJSON(w)
+		return
+	}
 
 	Success.WriteJSON(w)
 }
@@ -213,7 +221,12 @@ func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	UserState.Users().DelKey(username, "cookie-expiry")
+	if err = UserState.Users().DelKey(username, "cookie-expiry"); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		ErrInternal.WriteJSON(w)
+		return
+	}
+
 	UserState.RemoveUser(username)
 
 	Success.WriteJSON(w)
