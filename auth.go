@@ -1,7 +1,6 @@
 package itpg
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -59,6 +58,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		ErrGenCode.WriteJSON(w)
 		return
 	}
+
 	if err = SendMailFunc(creds.Email, creds.Email, confirmationCode.String()); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		ErrSendMail.WriteJSON(w)
@@ -212,6 +212,40 @@ func RefreshCookie(w http.ResponseWriter, r *http.Request) {
 	Success.WriteJSON(w)
 }
 
+// ChangePassword changes the account password of a currently logged-in user.
+func ChangePassword(w http.ResponseWriter, r *http.Request) {
+	username, err := UserState.UsernameCookie(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		ErrInvalidCookie.WriteJSON(w)
+		return
+	}
+
+	if !UserState.IsConfirmed(username) {
+		w.WriteHeader(http.StatusForbidden)
+		ErrNotConfirmed.WriteJSON(w)
+		return
+	}
+
+	oldPassword, newPassword := r.FormValue("oldPassword"), r.FormValue("newPassword")
+	if err = isEmptyStr(w, oldPassword, newPassword); err != nil {
+		return
+	}
+
+	if !UserState.CorrectPassword(username, oldPassword) {
+		w.WriteHeader(http.StatusUnauthorized)
+		ErrWrongUsernamePassword.WriteJSON(w)
+		return
+	}
+
+	UserState.SetPassword(username, newPassword)
+
+	Success.WriteJSON(w)
+}
+
+// ResetPassword resets the password of an account, in case a user forgot it.
+// func ResetPassword(w http.ResponseWriter, r *http.Request) {}
+
 // DeleteAccount deletes the account of the currently logged-in user.
 func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	username, err := UserState.UsernameCookie(r)
@@ -230,17 +264,6 @@ func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	UserState.RemoveUser(username)
 
 	Success.WriteJSON(w)
-}
-
-// Greet greets the user with a personalized message, including a cowboy emoji 🤠.
-func Greet(w http.ResponseWriter, r *http.Request) {
-	username, err := UserState.UsernameCookie(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		ErrInvalidCookie.WriteJSON(w)
-		return
-	}
-	(&Response{Code: SuccessCode, Message: fmt.Sprintf("Sup %s 🤠 ?", username)}).WriteJSON(w)
 }
 
 // Ping checks that the user is logged in and that the cookie is not expired.

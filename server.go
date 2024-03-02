@@ -92,8 +92,8 @@ func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailD
 		{"/refresh", RefreshCookie, http.MethodPost},
 		{"/logout", Logout, http.MethodPost},
 		{"/clear", ClearCookie, http.MethodPost},
+		{"/changepass", ChangePassword, http.MethodPost},
 		{"/delete", DeleteAccount, http.MethodPost},
-		{"/greet", Greet, http.MethodGet},
 		{"/ping", Ping, http.MethodGet},
 	}
 	publicHandlers := []HandlerInfo{
