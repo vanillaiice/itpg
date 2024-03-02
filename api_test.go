@@ -28,7 +28,7 @@ func initDB(path ...string) (*db.DB, error) {
 	if len(path) == 0 {
 		path = append(path, ":memory:")
 	}
-	db, err := db.NewDB(path[0])
+	db, err := db.NewDB(path[0], true)
 	if err != nil {
 		return nil, err
 	}

@@ -13,8 +13,8 @@ func main() {
 		Name:    "itpg-backend",
 		Suggest: true,
 		Version: "v0.0.11",
-		Authors: []*cli.Author{{Name: "Vanillaiice", Email: "vanillaiice1@proton.me"}},
-		Usage:   "Backend server for ITPG, handles database transactions and user state management through HTTP requests.",
+		Authors: []*cli.Author{{Name: "vanillaiice", Email: "vanillaiice1@proton.me"}},
+		Usage:   "Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "port",
@@ -27,6 +27,12 @@ func main() {
 				Aliases: []string{"d"},
 				Usage:   "professors, courses and scores sqlite database",
 				Value:   "itpg.db",
+			},
+			&cli.BoolFlag{
+				Name:    "db-speed",
+				Aliases: []string{"e"},
+				Usage:   "prioritize database transaction speed at the cost of data integrity",
+				Value:   false,
 			},
 			&cli.PathFlag{
 				Name:    "users-db",
@@ -76,7 +82,19 @@ func main() {
 			},
 		},
 		Action: func(ctx *cli.Context) error {
-			return itpg.Run(ctx.String("port"), ctx.Path("db"), ctx.Path("users-db"), ctx.Path("env"), ctx.StringSlice("allowed-origins"), ctx.StringSlice("allowed-mail-domains"), ctx.Bool("smtp"), ctx.Bool("http"), ctx.Path("cert-file"), ctx.Path("key-file"))
+			return itpg.Run(
+				ctx.String("port"),
+				ctx.Path("db"),
+				ctx.Path("users-db"),
+				ctx.Path("env"),
+				ctx.Bool("db-speed"),
+				ctx.StringSlice("allowed-origins"),
+				ctx.StringSlice("allowed-mail-domains"),
+				ctx.Bool("smtp"),
+				ctx.Bool("http"),
+				ctx.Path("cert-file"),
+				ctx.Path("key-file"),
+			)
 		},
 	}
 

@@ -27,7 +27,7 @@ func initDB(path ...string) (*DB, error) {
 	if len(path) == 0 {
 		path = append(path, ":memory:")
 	}
-	db, err := NewDB(path[0])
+	db, err := NewDB(path[0], true)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func initDB(path ...string) (*DB, error) {
 }
 
 func TestNewDB(t *testing.T) {
-	db, err := NewDB(":memory:")
+	db, err := NewDB(":memory:", true)
 	if err != nil {
 		t.Fatal(err)
 	}

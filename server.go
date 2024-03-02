@@ -35,12 +35,12 @@ var UserState pinterface.IUserState
 const CookieTimeout = 30 * time.Minute
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
-func Run(port, dbPath, usersDbPath, envPath string, allowedOrigins, allowedMailDomains []string, useSMTP, useHTTP bool, certFile, keyFile string) (err error) {
+func Run(port, dbPath, usersDbPath, envPath string, speed bool, allowedOrigins, allowedMailDomains []string, useSMTP, useHTTP bool, certFile, keyFile string) (err error) {
 	if err = InitCredsSMTP(envPath, !useSMTP); err != nil {
 		log.Fatal(err)
 	}
 
-	DataDB, err = db.NewDB(dbPath)
+	DataDB, err = db.NewDB(dbPath, speed)
 	if err != nil {
 		log.Fatal(err)
 	}
