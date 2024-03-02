@@ -12,7 +12,7 @@ func main() {
 	app := &cli.App{
 		Name:    "itpg-backend",
 		Suggest: true,
-		Version: "v0.0.10",
+		Version: "v0.0.11",
 		Authors: []*cli.Author{{Name: "Vanillaiice", Email: "vanillaiice1@proton.me"}},
 		Usage:   "Backend server for ITPG, handles database transactions and user state management through HTTP requests.",
 		Flags: []cli.Flag{
