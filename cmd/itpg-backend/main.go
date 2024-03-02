@@ -30,7 +30,7 @@ func main() {
 			},
 			&cli.BoolFlag{
 				Name:    "db-speed",
-				Aliases: []string{"e"},
+				Aliases: []string{"b"},
 				Usage:   "prioritize database transaction speed at the cost of data integrity",
 				Value:   false,
 			},
