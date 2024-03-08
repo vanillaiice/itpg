@@ -1,4 +1,4 @@
-package itpg
+package responses
 
 import (
 	"encoding/json"
@@ -12,21 +12,16 @@ type Response struct {
 	Message interface{} `json:"message"` // Message associated with the response
 }
 
-// String returns a string representation of the Response.
-func (r *Response) String() string {
+// Error returns an error representation of the Response.
+// It contains the error code and the message.
+func (r *Response) Error() string {
 	b, _ := json.Marshal(r)
 	return string(b)
 }
 
-// Error returns an error representation of the Response.
-// It contains the error code and the message.
-func (r *Response) Error() error {
-	return fmt.Errorf(r.String())
-}
-
 // WriteJSON writes a response to the specified writer
 func (r *Response) WriteJSON(w io.Writer) {
-	w.Write([]byte(r.String()))
+	w.Write([]byte(r.Error()))
 }
 
 // NewResponse creates a new Response with the given code and message.
@@ -75,7 +70,7 @@ var (
 	// ErrBadRequest indicates a bad request.
 	ErrBadRequest = NewResponse(4012, "bad request")
 	// ErrEmptyValue indicates an empty value.
-	ErrEmptyValue = NewResponse(4013, "empty value")
+	ErrEmptyValue = NewResponse(4013, "got empty value")
 	// ErrCourseGraded indicates that the course is already graded.
 	ErrCourseGraded = NewResponse(4014, "course already graded")
 	// ErrPermissionDenied indicates that permission is denied.
@@ -86,6 +81,12 @@ var (
 	ErrEmailDomainNotAllowed = NewResponse(4017, "email domain not allowed")
 	// ErrRequestLimitReached indicates that the user has reached the request limit
 	ErrRequestLimitReached = NewResponse(4018, "request limit reached")
+	// ErrResetCodeSent indicates that a reset code was already sent
+	ErrResetCodeSent = NewResponse(4019, "reset code already sent")
+	// ErrResetCodeNotSent indicates that a reset code was not sent
+	ErrResetCodeNotSent = NewResponse(4019, "reset code not sent")
+	// ErrWrongResetCode indicates that the reset code is incorrect.
+	ErrWrongResetCode = NewResponse(4020, "wrong reset code")
 )
 
 // Server-side Errors

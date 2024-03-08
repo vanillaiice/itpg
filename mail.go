@@ -2,6 +2,7 @@ package itpg
 
 import (
 	"fmt"
+	"itpg/responses"
 	"net/smtp"
 	"os"
 	"time"
@@ -12,7 +13,7 @@ import (
 // SMTP server configuration details
 var (
 	// MailSendFunc is the function used to send mails.
-	SendMailFunc func(mailToUsername, mailToAddress, confirmationCode string) error
+	SendMailFunc func(mailToAddress string, message []byte) error
 	// SMTPHost is the host used for SMTP communication.
 	SMTPHost string
 	// SMTPPort is the port number used for SMTP communication.
@@ -51,7 +52,7 @@ func InitCredsSMTP(envPath string, SMTPS bool) (err error) {
 
 	for _, s := range keys {
 		if *s == "" {
-			return ErrEmptyValue.Error()
+			return responses.ErrEmptyValue
 		}
 	}
 	SMTPURL = fmt.Sprintf("%s:%s", SMTPHost, SMTPPort)
@@ -60,16 +61,15 @@ func InitCredsSMTP(envPath string, SMTPS bool) (err error) {
 }
 
 // SendMailSMTPS sends an email using SMTP over TLS, with SMTP authentication.
-func SendMailSMTPS(mailToUsername, mailToAddress, confirmationCode string) error {
+func SendMailSMTPS(mailToAddress string, message []byte) error {
 	auth := smtp.PlainAuth("", Username, Password, SMTPHost)
-	message := makeMessage(mailToAddress, mailToUsername, confirmationCode)
 	return smtp.SendMail(SMTPURL, auth, MailFromAddress, []string{mailToAddress}, message)
 }
 
 // SendMailSMTP sends an email using SMTP without authentication.
 // This should only be used when the SMTP server and the itpg-backend
 // binary are running on the same machine.
-func SendMailSMTP(mailToUsername, mailToAddress, confirmationCode string) error {
+func SendMailSMTP(mailToAddress string, message []byte) error {
 	c, err := smtp.Dial(SMTPURL)
 	if err != nil {
 		return err
@@ -89,7 +89,6 @@ func SendMailSMTP(mailToUsername, mailToAddress, confirmationCode string) error 
 		return err
 	}
 
-	message := makeMessage(mailToAddress, mailToUsername, confirmationCode)
 	if _, err := w.Write(message); err != nil {
 		return err
 	}
@@ -105,7 +104,12 @@ func SendMailSMTP(mailToUsername, mailToAddress, confirmationCode string) error 
 	return nil
 }
 
-// makeMessage creates the email message to be sent.
-func makeMessage(mailToAddress, mailToUsername, confirmationCode string) []byte {
-	return []byte(fmt.Sprintf("To: %s\r\nFrom: %s\r\nDate: %s\r\nSubject: ITPG Account Confirmation Code\r\n\r\nHello %s,\r\n\nYour confirmation code: %s\r\n\nUse this code to complete your registration on itpg.cc.\r\n\nThanks,\r\nITPG Team\r\n\r\nThis is an auto-generated email. Please do not reply to it.\r\n", mailToAddress, MailFromAddress, time.Now().Format(time.RFC1123Z), mailToUsername, confirmationCode))
+// makeConfCodeMessage creates the confirmation code email to be sent.
+func makeConfCodeMessage(mailToAddress, confirmationCode string) []byte {
+	return []byte(fmt.Sprintf("To: %s\r\nFrom: %s\r\nDate: %s\r\nSubject: ITPG Account Confirmation Code\r\n\r\nHello %s,\r\n\nYour confirmation code: %s\r\n\nUse this code to complete your registration on itpg.cc.\r\n\nThanks,\r\nITPG Team\r\n\r\nThis is an auto-generated email. Please do not reply to it.\r\n", mailToAddress, MailFromAddress, time.Now().Format(time.RFC1123Z), mailToAddress, confirmationCode))
+}
+
+// makeResetCodeMessage creates the reset password email to be sent.
+func makeResetCodeMessage(mailToAddress, resetLink string) []byte {
+	return []byte(fmt.Sprintf("To: %s\r\nFrom: %s\r\nDate: %s\r\nSubject: ITPG Account Confirmation Code\r\n\r\nHello %s,\r\n\nYour password reset link: %s\r\n\nUse this code to reset your password on itpg.cc.\r\n\nThanks,\r\nITPG Team\r\n\r\nThis is an auto-generated email. Please do not reply to it.\r\n", mailToAddress, MailFromAddress, time.Now().Format(time.RFC1123Z), mailToAddress, resetLink))
 }

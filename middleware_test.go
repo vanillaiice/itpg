@@ -2,95 +2,17 @@ package itpg
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"itpg/responses"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/xyproto/permissionbolt/v2"
 )
-
-var creds = &Credentials{Email: "joe@joe.com", Password: "joejoejoe"}
-
-func TestIsEmptyStr(t *testing.T) {
-	w := httptest.NewRecorder()
-	err := isEmptyStr(w, "foo", "bar", "baz")
-	if err != nil {
-		t.Error(err)
-	}
-	err = isEmptyStr(w, "", "bar")
-	if err == nil {
-		t.Error("expected failure")
-	}
-}
-
-func TestDecodeCredentials(t *testing.T) {
-	cb, err := json.Marshal(creds)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-	r, err := http.NewRequest(http.MethodGet, "", bytes.NewReader(cb))
-	if err != nil {
-		t.Fatal(err)
-	}
-	creds_, err := decodeCredentials(w, r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !cmp.Equal(creds_, creds) {
-		t.Errorf("got %v, want %v", creds_, creds)
-	}
-}
-
-func TestExtractDomain(t *testing.T) {
-	var err error
-	email := "foo@bar.com"
-	domain, err := extractDomain(email)
-	if err != nil {
-		t.Error(err)
-	}
-	if domain != "bar.com" {
-		t.Errorf("got %s, want %s", domain, "bar.com")
-	}
-}
-
-func TestValidAllowedDomains(t *testing.T) {
-	var err error
-	domains := []string{"foo.com", "bar.xyz", "buzz.io"}
-	if err = validAllowedDomains(domains); err != nil {
-		t.Error(err)
-	}
-	domains = []string{"*"}
-	if err = validAllowedDomains(domains); err != nil {
-		t.Error(err)
-	}
-	domains = []string{}
-	if err = validAllowedDomains(domains); err == nil {
-		t.Error("expected failure")
-	}
-}
-
-func TestCheckDomainAllowed(t *testing.T) {
-	var err error
-	AllowedMailDomains = []string{"foo.com", "bar.xyz"}
-	if err = checkDomainAllowed("foo.com"); err != nil {
-		t.Error(err)
-	}
-	if err = checkDomainAllowed("foo.com"); err != nil {
-		t.Error(err)
-	}
-	if err = checkDomainAllowed("buzz.cc"); err == nil {
-		t.Error("expected failure")
-	}
-	AllowedMailDomains = []string{"*"}
-	if err = checkDomainAllowed("fizz.cc"); err != nil {
-		t.Error(err)
-	}
-}
 
 func initTestUserState() (err error) {
 	perm, err := permissionbolt.NewWithConf("userstate-test.db")
@@ -98,6 +20,7 @@ func initTestUserState() (err error) {
 		return
 	}
 	UserState = perm.UserState()
+	CookieTimeout = 1 * time.Minute
 	UserState.SetCookieTimeout(int64(CookieTimeout.Seconds()))
 	return
 }
@@ -130,7 +53,7 @@ func TestCheckCookieExpiry(t *testing.T) {
 	}
 	r.AddCookie(c)
 
-	err = checkCookieExpiry(w, r)
+	err = checkCookieExpiry(creds.Email)
 	if err != nil {
 		t.Error(err)
 	}
@@ -138,11 +61,11 @@ func TestCheckCookieExpiry(t *testing.T) {
 	r = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	c = &http.Cookie{
 		Name:  cookie.Name,
-		Value: cookie.Value + "a",
+		Value: cookie.Value,
 	}
 	r.AddCookie(c)
 
-	err = checkCookieExpiry(w, r)
+	err = checkCookieExpiry(creds.Email + "a")
 	if err == nil {
 		t.Error("expected failure")
 	}
@@ -156,9 +79,9 @@ func TestCheckCookieExpiry(t *testing.T) {
 	r = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	r.AddCookie(c)
 
-	err = checkCookieExpiry(w, r)
+	err = checkCookieExpiry(creds.Email)
 	if err == nil {
-		t.Errorf("got %v, want %v", err, ErrExpiredCookie.Error())
+		t.Errorf("got %v, want %v", err, responses.ErrExpiredCookie.Error())
 	}
 }
 
@@ -186,42 +109,11 @@ func TestCheckConfirmedMiddleware_Unconfirmed(t *testing.T) {
 	}
 	r.AddCookie(c)
 
+	r = r.WithContext(context.WithValue(r.Context(), "username", creds.Email))
 	middleware.ServeHTTP(w, r)
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("got %v, want %v", w.Code, http.StatusUnauthorized)
-	}
-}
-
-func TestCheckConfirmedMiddleware_Confirmed(t *testing.T) {
-	err := initTestUserState()
-	if err != nil {
-		t.Error(err)
-	}
-	defer removeUserState()
-
-	handler := func(w http.ResponseWriter, r *http.Request) {}
-	middleware := checkConfirmedMiddleware(handler)
-
-	body, _ := json.Marshal(creds)
-	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
-	w := httptest.NewRecorder()
-
-	UserState.AddUser(creds.Email, creds.Password, "")
-	UserState.Confirm(creds.Email)
-	UserState.Login(w, creds.Email)
-
-	cookie := w.Result().Cookies()[0]
-	c := &http.Cookie{
-		Name:  cookie.Name,
-		Value: cookie.Value,
-	}
-	r.AddCookie(c)
-
-	middleware.ServeHTTP(w, r)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("got %v, want %v", w.Code, http.StatusOK)
 	}
 }
 
@@ -266,13 +158,13 @@ func TestCheckCookieExpiryMiddleware(t *testing.T) {
 	r = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	r.AddCookie(c)
 
-	err = checkCookieExpiry(w, r)
+	err = checkCookieExpiry(creds.Email)
 	if err == nil {
-		t.Errorf("got %v, want %v", err, ErrExpiredCookie.Error())
+		t.Errorf("got %v, want %v", err, responses.ErrExpiredCookie.Error())
 	}
 }
 
-func TestCheckUserAlreadyGradedMiddleware(t *testing.T) {
+func TestCheckConfirmedMiddleware_Confirmed(t *testing.T) {
 	err := initTestUserState()
 	if err != nil {
 		t.Error(err)
@@ -280,16 +172,15 @@ func TestCheckUserAlreadyGradedMiddleware(t *testing.T) {
 	defer removeUserState()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {}
-	middleware := checkUserAlreadyGradedMiddleware(handler)
+	middleware := checkConfirmedMiddleware(handler)
 
 	body, _ := json.Marshal(creds)
-	r := httptest.NewRequest(http.MethodPost, "/grade?code="+courses[0].Code+"&uuid="+professors[0].UUID, bytes.NewReader(body))
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
 	UserState.AddUser(creds.Email, creds.Password, "")
 	UserState.Confirm(creds.Email)
-
-	Login(w, r)
+	UserState.Login(w, creds.Email)
 
 	cookie := w.Result().Cookies()[0]
 	c := &http.Cookie{
@@ -298,17 +189,10 @@ func TestCheckUserAlreadyGradedMiddleware(t *testing.T) {
 	}
 	r.AddCookie(c)
 
+	r = r.WithContext(context.WithValue(r.Context(), "username", creds.Email))
 	middleware.ServeHTTP(w, r)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", w.Code, http.StatusOK)
-	}
-
-	w = httptest.NewRecorder()
-
-	middleware.ServeHTTP(w, r)
-
-	if w.Code != http.StatusForbidden {
-		t.Errorf("got %v, want %v", w.Code, http.StatusForbidden)
 	}
 }

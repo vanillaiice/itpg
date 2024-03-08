@@ -5,7 +5,15 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/google/go-cmp/cmp"
+	"github.com/zeebo/xxh3"
 )
+
+var professorNames = []string{
+	"Great Teacher Onizuka",
+	"Pippy Peepee Poopypants",
+	"Professor Oak",
+	"Takahashi Keisuke",
+}
 
 var courses = []*Course{
 	{Code: "S209", Name: "How to replace head gaskets"},
@@ -15,13 +23,6 @@ var courses = []*Course{
 }
 var professors = []*Professor{}
 var scores = []*Score{}
-
-var professorNames = []string{
-	"Great Teacher Onizuka",
-	"Pippy Peepee Poopypants",
-	"Professor Oak",
-	"Takahashi Keisuke",
-}
 
 func initDB(path ...string) (*DB, error) {
 	if len(path) == 0 {
@@ -33,7 +34,7 @@ func initDB(path ...string) (*DB, error) {
 	}
 
 	for _, c := range courses {
-		_, err := db.AddCourse(c.Code, c.Name)
+		_, err := db.AddCourse(c)
 		if err != nil {
 			return nil, err
 		}
@@ -45,18 +46,18 @@ func initDB(path ...string) (*DB, error) {
 			return nil, err
 		}
 	}
-	professors, err = db.GetAllProfessors()
+	professors, err = db.GetLastProfessors()
 	if err != nil {
 		return nil, err
 	}
 
-	for i := 0; i < len(professors) && i < len(courses); i++ {
+	for i := 0; i < len(professors); i++ {
 		_, err := db.AddCourseProfessor(professors[i].UUID, courses[i].Code)
 		if err != nil {
 			return nil, err
 		}
 	}
-	scores, err = db.GetAllScores()
+	scores, err = db.GetLastScores()
 	if err != nil {
 		return nil, err
 	}
@@ -78,21 +79,40 @@ func TestAddCourse(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	_, err = db.AddCourse("FC3S", "How to BRAPPPPPP")
+	_, err = db.AddCourse(&Course{"FC3S", "How to BRAPPPPPP"})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = db.AddCourse("FC3S", "How to BRAPPPPPP")
+	_, err = db.AddCourse(&Course{"FC3S", "How to BRAPPPPPP"})
 	if err == nil {
 		t.Error("expected failure")
 	}
-	_, err = db.AddCourse("FD3S", "")
+	_, err = db.AddCourse(&Course{"FD3S", ""})
 	if err == nil {
 		t.Error("expected failure")
 	}
-	_, err = db.AddCourse("", "How to BRAPPPPPP (second edition)")
+	_, err = db.AddCourse(&Course{"", "How to BRAPPPPPP (second edition)"})
 	if err == nil {
 		t.Error("expected failure")
+	}
+}
+
+func TestAddCourseMany(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	cs := []*Course{
+		{"FC3S", "How to BRAPPPPPP"},
+		{"AP1", "One Hand Driving 101"},
+		{"EK9", "Art of VTEC"},
+	}
+
+	err = db.AddCourseMany(cs)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -109,6 +129,25 @@ func TestAddProfessor(t *testing.T) {
 	_, err = db.AddProfessor("")
 	if err == nil {
 		t.Error("expected failure")
+	}
+}
+
+func TestAddProfessorMany(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ps := []string{
+		"foo",
+		"bar",
+		"baz",
+	}
+
+	err = db.AddProfessorMany(ps)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -131,6 +170,33 @@ func TestAddCourseProfessor(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = db.AddCourseProfessor(UUID.String(), "GC8F")
+	if err == nil {
+		t.Error("expected failure")
+	}
+}
+
+func TestAddCourseProfessorMany(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	uuids, codes := []string{}, []string{}
+	for i := len(professors) - 1; i >= 0; i-- {
+		uuids = append(uuids, professors[i].UUID)
+	}
+	for _, c := range courses {
+		codes = append(codes, c.Code)
+	}
+
+	err = db.AddCourseProfessorMany(uuids, codes)
+	if err != nil {
+		t.Error(err)
+	}
+
+	uuids = []string{}
+	err = db.AddCourseProfessorMany(uuids, codes)
 	if err == nil {
 		t.Error("expected failure")
 	}
@@ -194,13 +260,13 @@ func TestRemoveProfessor(t *testing.T) {
 	}
 }
 
-func TestGetAllCourses(t *testing.T) {
+func TestGetLastCourses(t *testing.T) {
 	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allCourses, err := db.GetAllCourses()
+	allCourses, err := db.GetLastCourses()
 	if err != nil {
 		t.Error(err)
 	}
@@ -209,13 +275,13 @@ func TestGetAllCourses(t *testing.T) {
 	}
 }
 
-func TestGetAllProfessors(t *testing.T) {
+func TestGetLastProfessors(t *testing.T) {
 	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allProfessors, err := db.GetAllProfessors()
+	allProfessors, err := db.GetLastProfessors()
 	if err != nil {
 		t.Error(err)
 	}
@@ -224,13 +290,13 @@ func TestGetAllProfessors(t *testing.T) {
 	}
 }
 
-func TestGetAllScores(t *testing.T) {
+func TestGetLastScores(t *testing.T) {
 	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	allScores, err := db.GetAllScores()
+	allScores, err := db.GetLastScores()
 	if err != nil {
 		t.Error(err)
 	}
@@ -356,6 +422,66 @@ func TestGetScoresByCourseLike(t *testing.T) {
 	}
 }
 
+func TestGradeCourseProfessor(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	profScores := [3]float32{5.00, 4.00, 3.00}
+	n, err := db.GradeCourseProfessor(professors[1].UUID, "CN9A", "joe", profScores)
+	if err != nil {
+		t.Error(err)
+	}
+	if n != 1 {
+		t.Error("expected 1 row to be affected")
+	}
+
+	_, err = db.GradeCourseProfessor(professors[1].UUID, "CN9A", "joe", profScores)
+	if err == nil {
+		t.Error("expected failure")
+	}
+
+	n, err = db.GradeCourseProfessor("1", "GC8F", "joe", profScores)
+	if err == nil {
+		t.Error("expected failure")
+	}
+}
+
+func TestCheckGraded(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	hasher := xxh3.New()
+	hasher.WriteString("joe" + courses[0].Code + professors[0].UUID)
+	hash := hasher.Sum64()
+
+	graded, err := db.checkGraded(hash)
+	if err != nil {
+		t.Error(err)
+	}
+	if graded {
+		t.Errorf("got %v, want %v", graded, false)
+	}
+
+	grades := [3]float32{5.00, 4.00, 3.00}
+	_, err = db.GradeCourseProfessor(professors[0].UUID, courses[0].Code, "joe", grades)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	graded, err = db.checkGraded(hash)
+	if err != nil {
+		t.Error(err)
+	}
+	if !graded {
+		t.Errorf("got %v, want %v", graded, true)
+	}
+}
+
 func TestGetLastScore(t *testing.T) {
 	db, err := initDB()
 	if err != nil {
@@ -363,7 +489,7 @@ func TestGetLastScore(t *testing.T) {
 	}
 	defer db.Close()
 	profScores := [3]float32{5.00, 4.00, 3.00}
-	_, err = db.GradeCourseProfessor(professors[1].UUID, "CN9A", profScores)
+	_, err = db.GradeCourseProfessor(professors[1].UUID, "CN9A", "joe", profScores)
 	if err != nil {
 		t.Error(err)
 	}
@@ -373,38 +499,6 @@ func TestGetLastScore(t *testing.T) {
 	}
 	if !cmp.Equal(profScores, lastScores) {
 		t.Errorf("got %.2f, want %.2f", lastScores, profScores)
-	}
-}
-
-func TestGradeCourseProfessor(t *testing.T) {
-	db, err := initDB()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	profScores := [3]float32{5.00, 4.00, 3.00}
-	n, err := db.GradeCourseProfessor(professors[1].UUID, "CN9A", profScores)
-	if err != nil {
-		t.Error(err)
-	}
-	if n != 1 {
-		t.Error("expected 1 row to be affected")
-	}
-	n, err = db.GradeCourseProfessor("1", "GC8F", profScores)
-	if err == nil {
-		t.Error("expected failure")
-	}
-}
-
-func TestExecStmt(t *testing.T) {
-	db, err := initDB()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	_, err = execStmt(db.db, "SELECT * FROM Courses")
-	if err != nil {
-		t.Error(err)
 	}
 }
 
@@ -420,5 +514,17 @@ func TestAverageScore(t *testing.T) {
 	avgScore = averageScore(scores...)
 	if avgScore != NullFloat64 {
 		t.Errorf("got %f, want %f", avgScore, expected)
+	}
+}
+
+func TestExecStmt(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = execStmt(db.db, "SELECT * FROM Courses")
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -1,7 +1,9 @@
 package itpg
 
 import (
+	"fmt"
 	"itpg/db"
+	"itpg/responses"
 	"log"
 	"net/http"
 	"time"
@@ -16,11 +18,20 @@ import (
 	"github.com/xyproto/pinterface"
 )
 
+type PathType int
+
+const (
+	AdminPath  PathType = 0
+	UserPath   PathType = 1
+	PublicPath PathType = 2
+)
+
 // HandlerInfo represents a struct containing information about an HTTP handler.
 type HandlerInfo struct {
-	Path    string                                   // Path specifies the URL pattern for which the handler is responsible.
-	Handler func(http.ResponseWriter, *http.Request) // Handler is the function that will be called to handle HTTP requests.
-	Method  string                                   // Method specifies the HTTP method associated with the handler.
+	Path     string                                   // Path specifies the URL pattern for which the handler is responsible.
+	Handler  func(http.ResponseWriter, *http.Request) // Handler is the function that will be called to handle HTTP requests.
+	Method   string                                   // Method specifies the HTTP method associated with the handler.
+	PathType PathType
 }
 
 // DataDB represents a pointer to a database connection,
@@ -31,105 +42,130 @@ var DataDB *db.DB
 // UserState stores the state of all users.
 var UserState pinterface.IUserState
 
+// PasswordResetURL is the URL of the password reset web page.
+// An example URL would be: https://demo.itpg.cc/changepass.
+// The backend server will then append the following to the previous URL:
+// ?code=foobarbaz, and send it to the user's email.
+// Then, the website should get the email and new password of the user,
+// and make the following example POST request to the api server:
+// curl https://api.itpg.cc/resetpass -d '{"code": "foobarbaz", "email": "foo@bar.com", "password": "fizzbuzz"}'
+var PasswordResetWebsiteURL string
+
 // CookieTimeout represents the duration after which a session cookie expires.
-const CookieTimeout = 30 * time.Minute
+var CookieTimeout time.Duration
+
+// RunConfig defines the server's configuration settings.
+type RunConfig struct {
+	Port                    string   // Port on which the server will run
+	DBPath                  string   // Path to the SQLite database file
+	Speed                   bool     // Whether to use prioritize database transaction speed at the cost of data integrity
+	UsersDBPath             string   // Path to the users BOLT database file
+	SMTPEnvPath             string   // Path to the .env file containing SMTP configuration
+	PasswordResetWebsiteURL string   // URL to the password reset website page
+	AllowedOrigins          []string // List of allowed origins for CORS
+	AllowedMailDomains      []string // List of allowed mail domains for registering with the service
+	UseSMTP                 bool     // Whether to use SMTP (false for SMTPS)
+	UseHTTP                 bool     // Whether to use HTTP (false for HTTPS)
+	CertFilePath            string   // Path to the certificate file (required for HTTPS)
+	KeyFilePath             string   // Path to the key file (required for HTTPS)
+	CookieTimeout           int      // Duration in minute after which a session cookie expires
+}
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
-func Run(port, dbPath, usersDbPath, envPath string, speed bool, allowedOrigins, allowedMailDomains []string, useSMTP, useHTTP bool, certFile, keyFile string) (err error) {
-	if err = InitCredsSMTP(envPath, !useSMTP); err != nil {
+func Run(config *RunConfig) (err error) {
+	if err = validAllowedDomains(config.AllowedMailDomains); err != nil {
+		log.Fatal(err)
+	}
+	AllowedMailDomains = config.AllowedMailDomains
+
+	if err = InitCredsSMTP(config.SMTPEnvPath, !config.UseSMTP); err != nil {
 		log.Fatal(err)
 	}
 
-	DataDB, err = db.NewDB(dbPath, speed)
+	DataDB, err = db.NewDB(config.DBPath, config.Speed)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer DataDB.Close()
 
-	perm, err := permissionbolt.NewWithConf(usersDbPath)
+	perm, err := permissionbolt.NewWithConf(config.UsersDBPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	if err = validAllowedDomains(allowedMailDomains); err != nil {
-		log.Fatal(err)
-	}
-	AllowedMailDomains = allowedMailDomains
-
 	perm.SetDenyFunction(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		ErrPermissionDenied.WriteJSON(w)
+		responses.ErrPermissionDenied.WriteJSON(w)
 	})
 
+	CookieTimeout = time.Minute * time.Duration(config.CookieTimeout)
 	UserState = perm.UserState()
 	UserState.SetCookieTimeout(int64(CookieTimeout.Seconds()))
 
+	PasswordResetWebsiteURL = config.PasswordResetWebsiteURL
+
 	c := cors.New(cors.Options{
-		AllowedOrigins:   allowedOrigins,
+		AllowedOrigins:   config.AllowedOrigins,
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 		AllowCredentials: true,
 	})
 
-	lmt := tollbooth.NewLimiter(10, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Minute})
+	lmt := tollbooth.NewLimiter(100, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Minute})
 	lmt.SetMessageContentType("application/json")
-	lmt.SetMessage(ErrRequestLimitReached.String())
+	lmt.SetMessage(responses.ErrRequestLimitReached.Error())
 	lmt.SetOnLimitReached(func(w http.ResponseWriter, r *http.Request) {
-		ErrRequestLimitReached.WriteJSON(w)
+		responses.ErrRequestLimitReached.WriteJSON(w)
 	})
 
-	adminHandlers := []HandlerInfo{
-		{"/courses/add", AddCourse, http.MethodPost},
-		{"/professors/add", AddProfessor, http.MethodPost},
-		{"/courses/addprof", AddCourseProfessor, http.MethodPost},
-		{"/courses/remove", RemoveCourse, http.MethodDelete},
-		{"/courses/removeforce", RemoveCourseForce, http.MethodDelete},
-		{"/courses/removeprof", RemoveCourseProfessor, http.MethodDelete},
-		{"/professors/remove", RemoveProfessor, http.MethodDelete},
-		{"/professors/removeforce", RemoveProfessorForce, http.MethodDelete},
-	}
-	userHandlers := []HandlerInfo{
-		{"/courses/grade", GradeCourseProfessor, http.MethodPost},
-		{"/refresh", RefreshCookie, http.MethodPost},
-		{"/logout", Logout, http.MethodPost},
-		{"/clear", ClearCookie, http.MethodPost},
-		{"/changepass", ChangePassword, http.MethodPost},
-		{"/delete", DeleteAccount, http.MethodPost},
-		{"/ping", Ping, http.MethodGet},
-	}
-	publicHandlers := []HandlerInfo{
-		{"/courses", GetAllCourses, http.MethodGet},
-		{"/professors", GetAllProfessors, http.MethodGet},
-		{"/scores", GetAllScores, http.MethodGet},
-		{"/courses/{uuid}", GetCoursesByProfessorUUID, http.MethodGet},
-		{"/professors/{code}", GetProfessorsByCourseCode, http.MethodGet},
-		{"/scores/prof/{uuid}", GetScoresByProfessorUUID, http.MethodGet},
-		{"/scores/name/{name}", GetScoresByProfessorName, http.MethodGet},
-		{"/scores/namelike/{name}", GetScoresByProfessorNameLike, http.MethodGet},
-		{"/scores/course/{code}", GetScoresByCourseCode, http.MethodGet},
-		{"/scores/courselike/{code}", GetScoresByCourseCodeLike, http.MethodGet},
-		{"/login", Login, http.MethodPost},
-		{"/register", Register, http.MethodPost},
-		{"/confirm", Confirm, http.MethodPost},
-		{"/newconfirmationcode", SendNewConfirmationCode, http.MethodPost},
+	handlers := []*HandlerInfo{
+		// Admin
+		{"/courses/add", AddCourse, http.MethodPost, AdminPath},
+		{"/professors/add", AddProfessor, http.MethodPost, AdminPath},
+		{"/courses/addprof", AddCourseProfessor, http.MethodPost, AdminPath},
+		{"/courses/remove", RemoveCourse, http.MethodDelete, AdminPath},
+		{"/courses/removeforce", RemoveCourseForce, http.MethodDelete, AdminPath},
+		{"/courses/removeprof", RemoveCourseProfessor, http.MethodDelete, AdminPath},
+		{"/professors/remove", RemoveProfessor, http.MethodDelete, AdminPath},
+		{"/professors/removeforce", RemoveProfessorForce, http.MethodDelete, AdminPath},
+		// User
+		{"/courses/grade", GradeCourseProfessor, http.MethodPost, UserPath},
+		{"/refresh", RefreshCookie, http.MethodPost, UserPath},
+		{"/logout", Logout, http.MethodPost, UserPath},
+		{"/clear", ClearCookie, http.MethodPost, UserPath},
+		{"/changepass", ChangePassword, http.MethodPost, UserPath},
+		{"/ping", Ping, http.MethodGet, UserPath},
+		// Public
+		{"/courses", GetLastCourses, http.MethodGet, PublicPath},
+		{"/professors", GetLastProfessors, http.MethodGet, PublicPath},
+		{"/scores", GetLastScores, http.MethodGet, PublicPath},
+		{"/courses/{uuid}", GetCoursesByProfessorUUID, http.MethodGet, PublicPath},
+		{"/professors/{code}", GetProfessorsByCourseCode, http.MethodGet, PublicPath},
+		{"/scores/prof/{uuid}", GetScoresByProfessorUUID, http.MethodGet, PublicPath},
+		{"/scores/name/{name}", GetScoresByProfessorName, http.MethodGet, PublicPath},
+		{"/scores/namelike/{name}", GetScoresByProfessorNameLike, http.MethodGet, PublicPath},
+		{"/scores/course/{code}", GetScoresByCourseCode, http.MethodGet, PublicPath},
+		{"/scores/courselike/{code}", GetScoresByCourseCodeLike, http.MethodGet, PublicPath},
+		{"/login", Login, http.MethodPost, PublicPath},
+		{"/register", Register, http.MethodPost, PublicPath},
+		{"/confirm", Confirm, http.MethodPost, PublicPath},
+		{"/newconfirmationcode", SendNewConfirmationCode, http.MethodPost, PublicPath},
+		{"/sendresetlink", SendResetLink, http.MethodPost, PublicPath},
+		{"/resetpass", ResetPassword, http.MethodPost, PublicPath},
 	}
 
 	router := mux.NewRouter()
-	for _, h := range adminHandlers {
-		router.Handle(h.Path, checkCookieExpiryMiddleware(h.Handler)).Methods(h.Method)
-		perm.AddAdminPath(h.Path)
-	}
-	for _, h := range userHandlers {
-		if h.Path == "/courses/grade" {
-			router.Handle(h.Path, checkConfirmedMiddleware(checkCookieExpiryMiddleware(checkUserAlreadyGradedMiddleware(h.Handler)))).Methods(h.Method)
+
+	for _, h := range handlers {
+		switch h.PathType {
+		case AdminPath:
+			router.Handle(h.Path, checkCookieExpiryMiddleware(h.Handler)).Methods(h.Method)
+			perm.AddAdminPath(h.Path)
+		case UserPath:
+			router.Handle(h.Path, checkCookieExpiryMiddleware(checkConfirmedMiddleware(h.Handler))).Methods(h.Method)
 			perm.AddUserPath(h.Path)
-			continue
+		case PublicPath:
+			router.HandleFunc(h.Path, h.Handler).Methods(h.Method)
+			perm.AddPublicPath(h.Path)
 		}
-		router.Handle(h.Path, checkConfirmedMiddleware(checkCookieExpiryMiddleware(h.Handler))).Methods(h.Method)
-		perm.AddUserPath(h.Path)
-	}
-	for _, h := range publicHandlers {
-		router.HandleFunc(h.Path, h.Handler).Methods(h.Method)
-		perm.AddPublicPath(h.Path)
 	}
 
 	n := negroni.Classic()
@@ -138,11 +174,19 @@ func Run(port, dbPath, usersDbPath, envPath string, speed bool, allowedOrigins, 
 	n.Use(tollbooth_negroni.LimitHandler(lmt))
 	n.UseHandler(router)
 
-	if !useHTTP {
-		log.Printf("itpg-backend listening on port %s with HTTPS\n", port)
-		return http.ListenAndServeTLS(":"+port, certFile, keyFile, n)
+	s := "itpg-backend listening on port " + config.Port
+
+	if !config.UseSMTP {
+		s += " with SMTPS,"
 	} else {
-		log.Printf("itpg-backend listening on port %s\n", port)
-		return http.ListenAndServe(":"+port, n)
+		s += " with SMTP,"
+	}
+
+	if !config.UseHTTP {
+		log.Print(fmt.Sprintf("%s with HTTPS\n", s))
+		return http.ListenAndServeTLS(":"+config.Port, config.CertFilePath, config.KeyFilePath, n)
+	} else {
+		log.Print(fmt.Sprintf("%s with HTTP\n", s))
+		return http.ListenAndServe(":"+config.Port, n)
 	}
 }

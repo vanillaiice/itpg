@@ -40,11 +40,23 @@ func main() {
 				Usage:   "user state management bolt database",
 				Value:   "users.db",
 			},
+			&cli.IntFlag{
+				Name:    "cookie-timeout",
+				Aliases: []string{"i"},
+				Usage:   "cookie timeout in minutes",
+				Value:   30,
+			},
 			&cli.PathFlag{
 				Name:    "env",
 				Aliases: []string{"e"},
 				Usage:   "SMTP configuration file",
 				Value:   ".env",
+			},
+			&cli.StringFlag{
+				Name:     "pass-reset-url",
+				Aliases:  []string{"r"},
+				Usage:    "URL of the password reset web page",
+				Required: true,
 			},
 			&cli.StringSliceFlag{
 				Name:     "allowed-origins",
@@ -83,17 +95,21 @@ func main() {
 		},
 		Action: func(ctx *cli.Context) error {
 			return itpg.Run(
-				ctx.String("port"),
-				ctx.Path("db"),
-				ctx.Path("users-db"),
-				ctx.Path("env"),
-				ctx.Bool("db-speed"),
-				ctx.StringSlice("allowed-origins"),
-				ctx.StringSlice("allowed-mail-domains"),
-				ctx.Bool("smtp"),
-				ctx.Bool("http"),
-				ctx.Path("cert-file"),
-				ctx.Path("key-file"),
+				&itpg.RunConfig{
+					Port:                    ctx.String("port"),
+					DBPath:                  ctx.Path("db"),
+					UsersDBPath:             ctx.Path("users-db"),
+					CookieTimeout:           ctx.Int("cookie-timeout"),
+					SMTPEnvPath:             ctx.Path("env"),
+					PasswordResetWebsiteURL: ctx.String("pass-reset-url"),
+					Speed:                   ctx.Bool("speed"),
+					AllowedOrigins:          ctx.StringSlice("allowed-origins"),
+					AllowedMailDomains:      ctx.StringSlice("allowed-mail-domains"),
+					UseSMTP:                 ctx.Bool("smtp"),
+					UseHTTP:                 ctx.Bool("http"),
+					CertFilePath:            ctx.Path("cert-file"),
+					KeyFilePath:             ctx.Path("key-file"),
+				},
 			)
 		},
 	}

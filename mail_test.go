@@ -37,7 +37,7 @@ func TestSendMailSMTP(t *testing.T) {
 	SMTPURL = fmt.Sprintf("127.0.0.1:%d", server.PortNumber())
 	MailFromAddress = "testing@test.com"
 
-	if err := SendMailSMTP("Takumi Fujiwara", "takumi@fuji.ae", "iamsuperduperfastondownhills"); err != nil {
+	if err := SendMailSMTP("takumi@fuji.ae", []byte("iamsuperduperfastondownhills")); err != nil {
 		t.Error(err)
 	}
 }
@@ -55,8 +55,8 @@ func TestSendMailSMTPS(t *testing.T) {
 	SMTPURL = fmt.Sprintf("%s:%d", SMTPHost, server.PortNumber())
 	MailFromAddress = "testing@test.com"
 
-	/* The following code block will fail, because the go-mock-smtp package does not support auth.
-	if err := SendMailSMTPS("Takumi Fujiwara", "takumi@fuji.ae", "iamsuperduperfastondownhills"); err != nil {
+	/* The below code block will fail, because the go-mock-smtp package does not support auth.
+	if err := SendMailSMTPS("takumi@fuji.ae", "iamsuperduperfastondownhills"); err != nil {
 		t.Error(err)
 	}
 	*/

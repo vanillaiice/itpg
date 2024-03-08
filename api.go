@@ -1,11 +1,22 @@
 package itpg
 
 import (
+	"errors"
+	"itpg/db"
+	"itpg/responses"
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
 )
+
+// GradeData contains data needed to grade a course.
+type GradeData struct {
+	CourseCode      string  `json:"code"`
+	ProfUUID        string  `json:"uuid"`
+	GradeTeaching   float32 `json:"teaching"`
+	GradeCoursework float32 `json:"coursework"`
+	GradeLearning   float32 `json:"learning"`
+}
 
 // AddCourse handles the HTTP request to add a new course.
 func AddCourse(w http.ResponseWriter, r *http.Request) {
@@ -14,13 +25,14 @@ func AddCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := DataDB.AddCourse(courseCode, courseName); err != nil {
+	if _, err := DataDB.AddCourse(&db.Course{Code: courseCode, Name: courseName}); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // AddProfessor handles the HTTP request to add a new professor.
@@ -32,11 +44,12 @@ func AddProfessor(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := DataDB.AddProfessor(fullName); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // AddCourseProfessor handles the HTTP request to associate a course with a professor.
@@ -48,11 +61,12 @@ func AddCourseProfessor(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := DataDB.AddCourseProfessor(professorUUID, courseCode); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // RemoveCourse handles the HTTP request to remove a course.
@@ -64,11 +78,12 @@ func RemoveCourse(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := DataDB.RemoveCourse(courseCode, false); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // RemoveCourseForce handles the HTTP request to forcefully remove a course.
@@ -80,11 +95,12 @@ func RemoveCourseForce(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := DataDB.RemoveCourse(courseCode, true); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // RemoveCourseProfessor handles the HTTP request to disassociate a course from a professor.
@@ -96,11 +112,12 @@ func RemoveCourseProfessor(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := DataDB.RemoveCourseProfessor(professorUUID, courseCode); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // RemoveProfessor handles the HTTP request to remove a professor.
@@ -112,11 +129,12 @@ func RemoveProfessor(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := DataDB.RemoveProfessor(professorUUID, false); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // RemoveProfessorForce handles the HTTP request to forcefully remove a professor.
@@ -128,50 +146,51 @@ func RemoveProfessorForce(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := DataDB.RemoveProfessor(professorUUID, true); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
-		return
-	}
-
-	Success.WriteJSON(w)
-}
-
-// GetAllCourses handles the HTTP request to get all courses.
-func GetAllCourses(w http.ResponseWriter, r *http.Request) {
-	courses, err := DataDB.GetAllCourses()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: courses}).WriteJSON(w)
+	responses.Success.WriteJSON(w)
 }
 
-// GetAllProfessors handles the HTTP request to get all professors.
-func GetAllProfessors(w http.ResponseWriter, r *http.Request) {
-	professors, err := DataDB.GetAllProfessors()
+// GetLastCourses handles the HTTP request to get all courses.
+func GetLastCourses(w http.ResponseWriter, r *http.Request) {
+	courses, err := DataDB.GetLastCourses()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: professors}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: courses}).WriteJSON(w)
 }
 
-// GetAllScores handles the HTTP request to get all scores.
-func GetAllScores(w http.ResponseWriter, r *http.Request) {
-	scores, err := DataDB.GetAllScores()
+// GetLastProfessors handles the HTTP request to get all professors.
+func GetLastProfessors(w http.ResponseWriter, r *http.Request) {
+	professors, err := DataDB.GetLastProfessors()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: scores}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: professors}).WriteJSON(w)
+}
+
+// GetLastScores handles the HTTP request to get all scores.
+func GetLastScores(w http.ResponseWriter, r *http.Request) {
+	scores, err := DataDB.GetLastScores()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
 }
 
 // GetCoursesByProfessor handles the HTTP request to get courses associated with a professor.
@@ -184,12 +203,12 @@ func GetCoursesByProfessorUUID(w http.ResponseWriter, r *http.Request) {
 	courses, err := DataDB.GetCoursesByProfessorUUID(professorUUID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: courses}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: courses}).WriteJSON(w)
 }
 
 // GetProfessorsByCourse handles the HTTP request to get professors associated with a course.
@@ -202,12 +221,12 @@ func GetProfessorsByCourseCode(w http.ResponseWriter, r *http.Request) {
 	professors, err := DataDB.GetProfessorsByCourseCode(courseCode)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: professors}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: professors}).WriteJSON(w)
 }
 
 // GetScoresByProfessorUUID handles the HTTP request to get scores associated with a professor.
@@ -220,12 +239,12 @@ func GetScoresByProfessorUUID(w http.ResponseWriter, r *http.Request) {
 	scores, err := DataDB.GetScoresByProfessorUUID(professorUUID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: scores}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
 }
 
 // GetScoresByProfessorName handles the HTTP request to get scores associated with a professor's name.
@@ -238,12 +257,12 @@ func GetScoresByProfessorName(w http.ResponseWriter, r *http.Request) {
 	scores, err := DataDB.GetScoresByProfessorName(professorName)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: scores}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
 }
 
 // GetScoresByProfessorNameLike handles the HTTP request to get scores associated with a professor's name.
@@ -256,12 +275,12 @@ func GetScoresByProfessorNameLike(w http.ResponseWriter, r *http.Request) {
 	scores, err := DataDB.GetScoresByProfessorNameLike(professorName)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: scores}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
 }
 
 // GetScoresByCourseCode handles the HTTP request to get scores associated with a course.
@@ -274,12 +293,12 @@ func GetScoresByCourseCode(w http.ResponseWriter, r *http.Request) {
 	scores, err := DataDB.GetScoresByCourseCode(courseCode)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: scores}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
 }
 
 // GetScoresByCourseCodeLike handles the HTTP request to get scores associated with a course.
@@ -292,41 +311,41 @@ func GetScoresByCourseCodeLike(w http.ResponseWriter, r *http.Request) {
 	scores, err := DataDB.GetScoresByCourseCodeLike(courseCode)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	(&Response{Code: SuccessCode, Message: scores}).WriteJSON(w)
+	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
 }
 
 // GradeCourseProfessor handles the HTTP request to grade a professor for a specific course.
 func GradeCourseProfessor(w http.ResponseWriter, r *http.Request) {
-	professorUUID, courseCode := r.FormValue("uuid"), r.FormValue("code")
-	gTeaching := r.FormValue("gTeaching")
-	gCoursework := r.FormValue("gCoursework")
-	gLearning := r.FormValue("gLearning")
-	if err := isEmptyStr(w, professorUUID, courseCode, gTeaching, gCoursework, gLearning); err != nil {
+	username, ok := r.Context().Value("username").(string)
+	if !ok || username == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	grades := [3]string{gTeaching, gCoursework, gLearning}
-	fgrades := [3]float32{}
-	for i, g := range grades {
-		fgrade, err := strconv.ParseFloat(g, 32)
-		if err != nil {
+	gradeData, err := decodeGradeData(w, r)
+	if err != nil {
+		return
+	}
+
+	grades := [3]float32{gradeData.GradeTeaching, gradeData.GradeCoursework, gradeData.GradeLearning}
+	if _, err := DataDB.GradeCourseProfessor(gradeData.ProfUUID, gradeData.CourseCode, username, grades); err != nil {
+		if errors.Is(err, responses.ErrCourseGraded) {
+			w.WriteHeader(http.StatusForbidden)
+			responses.ErrCourseGraded.WriteJSON(w)
+			return
+		} else {
 			w.WriteHeader(http.StatusInternalServerError)
-			ErrInternal.WriteJSON(w)
+			responses.ErrInternal.WriteJSON(w)
 			return
 		}
-		fgrades[i] = float32(fgrade)
 	}
 
-	if _, err := DataDB.GradeCourseProfessor(professorUUID, courseCode, fgrades); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
-		return
-	}
-
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }

@@ -1,16 +1,31 @@
 package itpg
 
 import (
+	"fmt"
+	"itpg/responses"
 	"net/http"
 	"time"
 
 	"github.com/gofrs/uuid"
 )
 
-// Credentials represents the user credentials for authentication and registration.
+// Credentials represents the user credentials.
 type Credentials struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+// CredentialsReset represents the user credentials for resetting password.
+type CredentialsReset struct {
+	Code     string `json:"code"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// CredentialsChange represents the user credentials for changing passwords.
+type CredentialsChange struct {
+	OldPassword string `json:"old"`
+	NewPassword string `json:"new"`
 }
 
 // AllowedMailDomains are the email domains allowed to register.
@@ -28,25 +43,25 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	domain, err := extractDomain(creds.Email)
 	if err != nil {
 		w.WriteHeader(http.StatusForbidden)
-		ErrInvalidEmail.WriteJSON(w)
+		responses.ErrInvalidEmail.WriteJSON(w)
 		return
 	}
 	if err = checkDomainAllowed(domain); err != nil {
 		w.WriteHeader(http.StatusForbidden)
-		ErrEmailDomainNotAllowed.WriteJSON(w)
+		responses.ErrEmailDomainNotAllowed.WriteJSON(w)
 		return
 	}
 	if UserState.HasUser(creds.Email) {
 		if UserState.IsConfirmed(creds.Email) {
 			w.WriteHeader(http.StatusForbidden)
-			ErrUsernameTaken.WriteJSON(w)
+			responses.ErrUsernameTaken.WriteJSON(w)
 			return
 		} else {
 			w.WriteHeader(http.StatusUnauthorized)
 			if UserState.CorrectPassword(creds.Email, creds.Password) {
-				ErrNotConfirmed.WriteJSON(w)
+				responses.ErrNotConfirmed.WriteJSON(w)
 			} else {
-				ErrWrongUsernamePassword.WriteJSON(w)
+				responses.ErrWrongUsernamePassword.WriteJSON(w)
 			}
 		}
 		return
@@ -55,20 +70,21 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	confirmationCode, err := uuid.NewV4()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrGenCode.WriteJSON(w)
+		responses.ErrGenCode.WriteJSON(w)
 		return
 	}
 
-	if err = SendMailFunc(creds.Email, creds.Email, confirmationCode.String()); err != nil {
+	if err = SendMailFunc(creds.Email, makeConfCodeMessage(creds.Email, confirmationCode.String())); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrSendMail.WriteJSON(w)
+		responses.ErrSendMail.WriteJSON(w)
 		return
 	}
 
 	UserState.AddUser(creds.Email, creds.Password, "")
 	UserState.AddUnconfirmed(creds.Email, confirmationCode.String())
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // SendNewConfirmationCode sends a new confirmation code to a registered user's email
@@ -81,30 +97,32 @@ func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 
 	if !UserState.CorrectPassword(creds.Email, creds.Password) {
 		w.WriteHeader(http.StatusUnauthorized)
-		ErrWrongUsernamePassword.WriteJSON(w)
+		responses.ErrWrongUsernamePassword.WriteJSON(w)
 		return
 	}
 	if UserState.IsConfirmed(creds.Email) {
 		w.WriteHeader(http.StatusForbidden)
-		ErrConfirmed.WriteJSON(w)
+		responses.ErrConfirmed.WriteJSON(w)
 		return
 	}
 
 	confirmationCode, err := uuid.NewV4()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrGenCode.WriteJSON(w)
+		responses.ErrGenCode.WriteJSON(w)
 		return
 	}
-	if err = SendMailFunc(creds.Email, creds.Email, confirmationCode.String()); err != nil {
+
+	if err = SendMailFunc(creds.Email, makeConfCodeMessage(creds.Email, confirmationCode.String())); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrSendMail.WriteJSON(w)
+		responses.ErrSendMail.WriteJSON(w)
 		return
 	}
 
 	UserState.AddUnconfirmed(creds.Email, confirmationCode.String())
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // Confirm confirms the user registration with the provided confirmation code.
@@ -114,13 +132,23 @@ func Confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := UserState.ConfirmUserByConfirmationCode(confirmationCode); err != nil {
+	username, err := UserState.FindUserByConfirmationCode(confirmationCode)
+	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
-		ErrWrongConfirmationCode.WriteJSON(w)
+		responses.ErrNotRegistered.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	if err := UserState.ConfirmUserByConfirmationCode(confirmationCode); err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		responses.ErrWrongConfirmationCode.WriteJSON(w)
+		return
+	}
+
+	UserState.RemoveUnconfirmed(username)
+
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // Login handles user login by checking credentials, confirming registration, setting a cookie
@@ -133,125 +161,202 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	if !UserState.HasUser(creds.Email) {
 		w.WriteHeader(http.StatusForbidden)
-		ErrNotRegistered.WriteJSON(w)
+		responses.ErrNotRegistered.WriteJSON(w)
 		return
 	}
 	if !UserState.CorrectPassword(creds.Email, creds.Password) {
 		w.WriteHeader(http.StatusUnauthorized)
-		ErrWrongUsernamePassword.WriteJSON(w)
+		responses.ErrWrongUsernamePassword.WriteJSON(w)
 		return
 	}
 	if !UserState.IsConfirmed(creds.Email) {
 		w.WriteHeader(http.StatusUnauthorized)
-		ErrNotConfirmed.WriteJSON(w)
+		responses.ErrNotConfirmed.WriteJSON(w)
 		return
 	}
 
 	if err = UserState.Users().Set(creds.Email, "cookie-expiry", time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	if err = UserState.Login(w, creds.Email); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // Logout logs out the currently logged-in user by removing their session.
 func Logout(w http.ResponseWriter, r *http.Request) {
-	username, err := UserState.UsernameCookie(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		ErrInvalidCookie.WriteJSON(w)
+	username, ok := r.Context().Value("username").(string)
+	if !ok || username == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	if !UserState.IsLoggedIn(username) {
 		w.WriteHeader(http.StatusForbidden)
-		ErrNotLoggedIn.WriteJSON(w)
+		responses.ErrNotLoggedIn.WriteJSON(w)
 		return
 	}
 
 	UserState.Logout(username)
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // ClearCookie clears the cookie for the current user session.
 func ClearCookie(w http.ResponseWriter, r *http.Request) {
 	UserState.ClearCookie(w)
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // RefreshCookie refreshes the cookie for the current user session by updating its expiry time.
 func RefreshCookie(w http.ResponseWriter, r *http.Request) {
-	username, err := UserState.UsernameCookie(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		ErrInvalidCookie.WriteJSON(w)
-		return
-	}
-
-	if err = UserState.Users().Set(username, "cookie-expiry", time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
+	username, ok := r.Context().Value("username").(string)
+	if !ok || username == "" {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	if err = UserState.Login(w, username); err != nil {
+	if err := UserState.Users().Set(username, "cookie-expiry", time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	Success.WriteJSON(w)
+	if err := UserState.Login(w, username); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // ChangePassword changes the account password of a currently logged-in user.
 func ChangePassword(w http.ResponseWriter, r *http.Request) {
-	username, err := UserState.UsernameCookie(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		ErrInvalidCookie.WriteJSON(w)
+	username, ok := r.Context().Value("username").(string)
+	if !ok || username == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
 	if !UserState.IsConfirmed(username) {
 		w.WriteHeader(http.StatusForbidden)
-		ErrNotConfirmed.WriteJSON(w)
+		responses.ErrNotConfirmed.WriteJSON(w)
 		return
 	}
 
-	oldPassword, newPassword := r.FormValue("oldPassword"), r.FormValue("newPassword")
-	if err = isEmptyStr(w, oldPassword, newPassword); err != nil {
+	credsChange, err := decodeCredentialsChange(w, r)
+	if err != nil {
+		return
+	}
+	if err = isEmptyStr(w, credsChange.OldPassword, credsChange.NewPassword); err != nil {
 		return
 	}
 
-	if !UserState.CorrectPassword(username, oldPassword) {
+	if !UserState.CorrectPassword(username, credsChange.OldPassword) {
 		w.WriteHeader(http.StatusUnauthorized)
-		ErrWrongUsernamePassword.WriteJSON(w)
+		responses.ErrWrongUsernamePassword.WriteJSON(w)
 		return
 	}
 
-	UserState.SetPassword(username, newPassword)
+	UserState.SetPassword(username, credsChange.NewPassword)
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
-// ResetPassword resets the password of an account, in case a user forgot it.
-// func ResetPassword(w http.ResponseWriter, r *http.Request) {}
+// ResetPassword resets the account password of a user, in case it was forgotten.
+func ResetPassword(w http.ResponseWriter, r *http.Request) {
+	credsReset, err := decodeCredentialsReset(w, r)
+	if err != nil {
+		return
+	}
 
+	var expectedResetCode string
+	if expectedResetCode, err = UserState.Users().Get(credsReset.Email, "reset-code"); err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		responses.ErrResetCodeNotSent.WriteJSON(w)
+		return
+	}
+
+	if credsReset.Code != expectedResetCode {
+		w.WriteHeader(http.StatusUnauthorized)
+		responses.ErrWrongResetCode.WriteJSON(w)
+		return
+	}
+
+	if err = UserState.Users().DelKey(credsReset.Email, "reset-code"); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	UserState.SetPassword(credsReset.Email, credsReset.Password)
+}
+
+// SendResetLink sends a mail containing a password reset link
+func SendResetLink(w http.ResponseWriter, r *http.Request) {
+	username := r.FormValue("email")
+	if err := isEmptyStr(w, username); err != nil {
+		return
+	}
+
+	if !UserState.HasUser(username) {
+		w.WriteHeader(http.StatusForbidden)
+		responses.ErrNotRegistered.WriteJSON(w)
+		return
+	}
+
+	if _, err := UserState.Users().Get(username, "reset-code"); err == nil {
+		w.WriteHeader(http.StatusForbidden)
+		responses.ErrResetCodeSent.WriteJSON(w)
+		return
+	}
+
+	resetCode, err := uuid.NewV4()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrGenCode.WriteJSON(w)
+		return
+	}
+
+	if err = SendMailFunc(username, makeResetCodeMessage(username, fmt.Sprintf("%s?code=%s&email=%s", PasswordResetWebsiteURL, resetCode.String(), username))); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrSendMail.WriteJSON(w)
+		return
+	}
+
+	if err = UserState.Users().Set(username, "reset-code", resetCode.String()); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
+	responses.Success.WriteJSON(w)
+}
+
+/*
 // DeleteAccount deletes the account of the currently logged-in user.
 func DeleteAccount(w http.ResponseWriter, r *http.Request) {
-	username, err := UserState.UsernameCookie(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		ErrInvalidCookie.WriteJSON(w)
+	username, ok := r.Context().Value("username").(string)
+	if !ok || username == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
@@ -263,8 +368,10 @@ func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 
 	UserState.RemoveUser(username)
 
-	Success.WriteJSON(w)
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
+*/
 
 // Ping checks that the user is logged in and that the cookie is not expired.
 func Ping(w http.ResponseWriter, r *http.Request) {}
