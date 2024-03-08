@@ -111,5 +111,5 @@ func makeConfCodeMessage(mailToAddress, confirmationCode string) []byte {
 
 // makeResetCodeMessage creates the reset password email to be sent.
 func makeResetCodeMessage(mailToAddress, resetLink string) []byte {
-	return []byte(fmt.Sprintf("To: %s\r\nFrom: %s\r\nDate: %s\r\nSubject: ITPG Account Confirmation Code\r\n\r\nHello %s,\r\n\nYour password reset link: %s\r\n\nUse this code to reset your password on itpg.cc.\r\n\nThanks,\r\nITPG Team\r\n\r\nThis is an auto-generated email. Please do not reply to it.\r\n", mailToAddress, MailFromAddress, time.Now().Format(time.RFC1123Z), mailToAddress, resetLink))
+	return []byte(fmt.Sprintf("To: %s\r\nFrom: %s\r\nDate: %s\r\nSubject: ITPG Account Password Reset Code\r\n\r\nHello %s,\r\n\nYour password reset link: %s\r\n\nUse this code to reset your password on itpg.cc.\r\n\nThanks,\r\nITPG Team\r\n\r\nThis is an auto-generated email. Please do not reply to it.\r\n", mailToAddress, MailFromAddress, time.Now().Format(time.RFC1123Z), mailToAddress, resetLink))
 }
