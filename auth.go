@@ -305,8 +305,10 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	UserState.SetPassword(credsReset.Email, credsReset.Password)
+
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
 }
 
 // SendResetLink sends a mail containing a password reset link
@@ -335,7 +337,7 @@ func SendResetLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = SendMailFunc(username, makeResetCodeMessage(username, fmt.Sprintf("%s?code=%s&email=%s", PasswordResetWebsiteURL, resetCode.String(), username))); err != nil {
+	if err = SendMailFunc(username, makeResetCodeMessage(username, fmt.Sprintf("%s?code=%s", PasswordResetWebsiteURL, resetCode.String()))); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
 		return
@@ -347,6 +349,7 @@ func SendResetLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	responses.Success.WriteJSON(w)
 }
 
