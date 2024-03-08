@@ -1,7 +1,6 @@
 package itpg
 
 import (
-	"fmt"
 	"itpg/db"
 	"itpg/responses"
 	"log"
@@ -183,10 +182,10 @@ func Run(config *RunConfig) (err error) {
 	}
 
 	if !config.UseHTTP {
-		log.Print(fmt.Sprintf("%s with HTTPS\n", s))
+		log.Printf("%s with HTTPS\n", s)
 		return http.ListenAndServeTLS(":"+config.Port, config.CertFilePath, config.KeyFilePath, n)
 	} else {
-		log.Print(fmt.Sprintf("%s with HTTP\n", s))
+		log.Printf("%s with HTTP\n", s)
 		return http.ListenAndServe(":"+config.Port, n)
 	}
 }
