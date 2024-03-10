@@ -82,18 +82,15 @@ func NewDB(path string, speed bool) (*DB, error) {
 
 	db := &DB{db: sqldb}
 
-	stmt := []string{
-		"PRAGMA foreign_keys = ON",
-		"CREATE TABLE IF NOT EXISTS Courses(code TEXT PRIMARY KEY NOT NULL CHECK(code != ''), name TEXT NOT NULL CHECK(name != ''), inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-		"CREATE TABLE IF NOT EXISTS Professors(uuid TEXT(36) PRIMARY KEY NOT NULL, name TEXT NOT NULL CHECK(name != ''), inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-		"CREATE TABLE IF NOT EXISTS Scores(professor_uuid TEXT(36) NOT NULL, course_code TEXT NOT NULL, score_teaching REAL CHECK(score_teaching >= 0 AND score_teaching <= 5), score_coursework REAL CHECK(score_coursework >= 0 AND score_coursework <= 5), score_learning REAL CHECK(score_learning >= 0 AND score_learning <= 5), count INTEGER NOT NULL, inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(professor_uuid, course_code), FOREIGN KEY(professor_uuid) REFERENCES Professors(uuid), FOREIGN KEY(course_code) REFERENCES Courses(code))",
-		"CREATE TABLE IF NOT EXISTS GradeHashes(id INTEGER PRIMARY KEY NOT NULL, hash INTEGER NOT NULL)",
-	}
+	stmt := `
+		PRAGMA foreign_keys = ON;
+	CREATE TABLE IF NOT EXISTS Courses(code TEXT PRIMARY KEY NOT NULL CHECK(code != ''), name TEXT NOT NULL CHECK(name != ''), inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+	CREATE TABLE IF NOT EXISTS Professors(uuid TEXT(36) PRIMARY KEY NOT NULL, name TEXT NOT NULL CHECK(name != ''), inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+	CREATE TABLE IF NOT EXISTS Scores(professor_uuid TEXT(36) NOT NULL, course_code TEXT NOT NULL, score_teaching REAL CHECK(score_teaching >= 0 AND score_teaching <= 5), score_coursework REAL CHECK(score_coursework >= 0 AND score_coursework <= 5), score_learning REAL CHECK(score_learning >= 0 AND score_learning <= 5), count INTEGER NOT NULL, inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(professor_uuid, course_code), FOREIGN KEY(professor_uuid) REFERENCES Professors(uuid), FOREIGN KEY(course_code) REFERENCES Courses(code));
+	CREATE TABLE IF NOT EXISTS GradeHashes(id INTEGER PRIMARY KEY NOT NULL, hash INTEGER NOT NULL);`
 
-	for _, s := range stmt {
-		if _, err := execStmt(sqldb, s); err != nil {
-			return nil, err
-		}
+	if _, err := execStmt(sqldb, stmt); err != nil {
+		return nil, err
 	}
 
 	return db, err
