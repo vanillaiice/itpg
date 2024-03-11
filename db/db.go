@@ -400,7 +400,52 @@ func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*Score, er
 	return
 }
 
-// GetScoresByCourse retrieves all scores associated with a course from the database.
+// GetScoresByCourseName retrieves all scores associated with a course from the database.
+func (db *DB) GetScoresByCourseName(name string) (scores []*Score, err error) {
+	stmt := fmt.Sprintf("SELECT Professors.name, Scores.course_code, Scores.professor_uuid, IFNULL(Scores.score_teaching, %d), IFNULL(Scores.score_coursework, %d), IFNULL(Scores.score_learning, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid LEFT JOIN Courses ON Scores.course_code = Courses.code WHERE Courses.name = %q ", NullFloat64, NullFloat64, NullFloat64, name)
+
+	rows, err := db.db.Query(stmt)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		score := Score{}
+		if err = rows.Scan(&score.ProfessorName, &score.CourseCode, &score.ProfessorUUID, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning, &score.Count); err != nil {
+			return nil, err
+		}
+		score.CourseName = name
+		score.ScoreAverage = averageScore(score.ScoreTeaching, score.ScoreCourseWork, score.ScoreLearning)
+		scores = append(scores, &score)
+	}
+
+	return
+}
+
+// GetScoresByCourseNameLike retrieves the last 100 scores associated with a course code from the database that matches the given search string
+func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*Score, err error) {
+	stmt := fmt.Sprintf("SELECT Professors.name, Scores.course_code, Courses.name, Scores.professor_uuid, IFNULL(Scores.score_teaching, %d), IFNULL(Scores.score_coursework, %d), IFNULL(Scores.score_learning, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid LEFT JOIN Courses ON Scores.course_code = Courses.code WHERE Courses.name LIKE %q ORDER BY Scores.inserted_at LIMIT %d", NullFloat64, NullFloat64, NullFloat64, fmt.Sprintf("%%%s%%", nameLike), MaxRowReturn)
+
+	rows, err := db.db.Query(stmt)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		score := Score{}
+		if err = rows.Scan(&score.ProfessorName, &score.CourseCode, &score.CourseName, &score.ProfessorUUID, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning, &score.Count); err != nil {
+			return nil, err
+		}
+		score.ScoreAverage = averageScore(score.ScoreTeaching, score.ScoreCourseWork, score.ScoreLearning)
+		scores = append(scores, &score)
+	}
+
+	return
+}
+
+// GetScoresByCourseCode retrieves all scores associated with a course from the database.
 func (db *DB) GetScoresByCourseCode(code string) (scores []*Score, err error) {
 	stmt := fmt.Sprintf("SELECT Professors.name, Courses.name, Scores.professor_uuid, IFNULL(Scores.score_teaching, %d), IFNULL(Scores.score_coursework, %d), IFNULL(Scores.score_learning, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid LEFT JOIN Courses ON Scores.course_code = Courses.code WHERE Scores.course_code = %q ", NullFloat64, NullFloat64, NullFloat64, code)
 
@@ -423,7 +468,7 @@ func (db *DB) GetScoresByCourseCode(code string) (scores []*Score, err error) {
 	return
 }
 
-// GetScoresByCourseLike retrieves the last 100 scores associated with a course code from the database that matches the given search string
+// GetScoresByCourseCodeLike retrieves the last 100 scores associated with a course code from the database that matches the given search string
 func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*Score, err error) {
 	stmt := fmt.Sprintf("SELECT Professors.name, Scores.course_code, Courses.name, Scores.professor_uuid, IFNULL(Scores.score_teaching, %d), IFNULL(Scores.score_coursework, %d), IFNULL(Scores.score_learning, %d), Scores.count FROM Scores LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid LEFT JOIN Courses ON Scores.course_code = Courses.code WHERE Scores.course_code LIKE %q ORDER BY Scores.inserted_at LIMIT %d", NullFloat64, NullFloat64, NullFloat64, fmt.Sprintf("%%%s%%", codeLike), MaxRowReturn)
 

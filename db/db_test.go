@@ -392,6 +392,36 @@ func TestGetScoresByProfessorNameLike(t *testing.T) {
 	}
 }
 
+func TestGetScoresByCourseName(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	allScores, err := db.GetScoresByCourseName("How to replace head gaskets")
+	if err != nil {
+		t.Error(err)
+	}
+	if !cmp.Equal(allScores[0], scores[0]) {
+		t.Errorf("got %v, want %v", allScores[0], scores[0])
+	}
+}
+
+func TestGetScoresByCourseNameLike(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	allScores, err := db.GetScoresByCourseNameLike("How to rep")
+	if err != nil {
+		t.Error(err)
+	}
+	if !cmp.Equal(allScores[0], scores[0]) {
+		t.Errorf("got %v, want %v", allScores[0], scores[0])
+	}
+}
+
 func TestGetScoresByCourseCode(t *testing.T) {
 	db, err := initDB()
 	if err != nil {
@@ -407,7 +437,7 @@ func TestGetScoresByCourseCode(t *testing.T) {
 	}
 }
 
-func TestGetScoresByCourseLike(t *testing.T) {
+func TestGetScoresByCourseCodeLike(t *testing.T) {
 	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
