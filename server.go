@@ -98,7 +98,7 @@ func Run(config *RunConfig) (err error) {
 
 	CookieTimeout = time.Minute * time.Duration(config.CookieTimeout)
 	UserState = perm.UserState()
-	UserState.SetCookieTimeout(int64(CookieTimeout.Seconds()))
+	UserState.SetCookieTimeout(int64(time.Minute * CookieTimeout))
 
 	PasswordResetWebsiteURL = config.PasswordResetWebsiteURL
 
