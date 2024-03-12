@@ -283,6 +283,42 @@ func GetScoresByProfessorNameLike(w http.ResponseWriter, r *http.Request) {
 	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
 }
 
+// GetScoresByCourseName handles the HTTP request to get scores associated with a course.
+func GetScoresByCourseName(w http.ResponseWriter, r *http.Request) {
+	courseName := mux.Vars(r)["name"]
+	if err := isEmptyStr(w, courseName); err != nil {
+		return
+	}
+
+	scores, err := DataDB.GetScoresByCourseName(courseName)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
+}
+
+// GetScoresByCourseNameLike handles the HTTP request to get scores associated with a course.
+func GetScoresByCourseNameLike(w http.ResponseWriter, r *http.Request) {
+	courseName := mux.Vars(r)["name"]
+	if err := isEmptyStr(w, courseName); err != nil {
+		return
+	}
+
+	scores, err := DataDB.GetScoresByCourseNameLike(courseName)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	(&responses.Response{Code: responses.SuccessCode, Message: scores}).WriteJSON(w)
+}
+
 // GetScoresByCourseCode handles the HTTP request to get scores associated with a course.
 func GetScoresByCourseCode(w http.ResponseWriter, r *http.Request) {
 	courseCode := mux.Vars(r)["code"]
