@@ -59,12 +59,8 @@ func (db *DB) Close() error {
 }
 
 // NewDB initializes a new database connection and sets up the necessary tables if they don't exist.
-func NewDB(path string, speed bool) (*DB, error) {
-	var (
-		err   error
-		sqldb *sql.DB
-	)
-
+func NewDB(path string, speed bool) (db *DB, err error) {
+	var sqldb *sql.DB
 	if speed {
 		// FIXME: using cache=shared makes tests fails for some reason
 		sqldb, err = sql.Open("sqlite", fmt.Sprintf("file:%s?journal_mode=memory&sync_mode=off&mode=rwc", path))
@@ -80,20 +76,20 @@ func NewDB(path string, speed bool) (*DB, error) {
 		return nil, err
 	}
 
-	db := &DB{db: sqldb}
+	db = &DB{db: sqldb}
 
 	stmt := `
 		PRAGMA foreign_keys = ON;
-	CREATE TABLE IF NOT EXISTS Courses(code TEXT PRIMARY KEY NOT NULL CHECK(code != ''), name TEXT NOT NULL CHECK(name != ''), inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-	CREATE TABLE IF NOT EXISTS Professors(uuid TEXT(36) PRIMARY KEY NOT NULL, name TEXT NOT NULL CHECK(name != ''), inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+	CREATE TABLE IF NOT EXISTS Courses(code TEXT PRIMARY KEY NOT NULL CHECK(code != ''), name TEXT NOT NULL CHECK(name != ''), inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(code, name));
+	CREATE TABLE IF NOT EXISTS Professors(uuid TEXT(36) PRIMARY KEY NOT NULL, name TEXT NOT NULL CHECK(name != ''), inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(name));
 	CREATE TABLE IF NOT EXISTS Scores(professor_uuid TEXT(36) NOT NULL, course_code TEXT NOT NULL, score_teaching REAL CHECK(score_teaching >= 0 AND score_teaching <= 5), score_coursework REAL CHECK(score_coursework >= 0 AND score_coursework <= 5), score_learning REAL CHECK(score_learning >= 0 AND score_learning <= 5), count INTEGER NOT NULL, inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(professor_uuid, course_code), FOREIGN KEY(professor_uuid) REFERENCES Professors(uuid), FOREIGN KEY(course_code) REFERENCES Courses(code));
-	CREATE TABLE IF NOT EXISTS GradeHashes(id INTEGER PRIMARY KEY NOT NULL, hash INTEGER NOT NULL);`
+	CREATE TABLE IF NOT EXISTS GradeHashes(id INTEGER PRIMARY KEY NOT NULL, hash INTEGER NOT NULL, UNIQUE(hash));`
 
 	if _, err := execStmt(sqldb, stmt); err != nil {
 		return nil, err
 	}
 
-	return db, err
+	return
 }
 
 // AddCourse adds a new course to the database.
