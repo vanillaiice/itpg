@@ -87,6 +87,8 @@ var (
 	ErrResetCodeNotSent = NewResponse(4019, "reset code not sent")
 	// ErrWrongResetCode indicates that the reset code is incorrect.
 	ErrWrongResetCode = NewResponse(4020, "wrong reset code")
+	// ErrWeakPassword indicates that the provided password is weak.
+	ErrWeakPassword = NewResponse(4021, "weak password")
 )
 
 // Server-side Errors

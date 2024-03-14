@@ -77,6 +77,7 @@ func TestErrorCodes(t *testing.T) {
 		{ErrResetCodeSent, 4019},
 		{ErrResetCodeNotSent, 4019},
 		{ErrWrongResetCode, 4020},
+		{ErrWeakPassword, 4021},
 	})
 
 	// Test server-side errors
