@@ -7,7 +7,11 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	zxcvbn "github.com/trustelem/zxcvbn"
 )
+
+// MinPasswordScore is the minimum acceptable score of a password computed by zxcvbn.
+const MinPasswordScore = 3
 
 // Credentials represents the user credentials.
 type Credentials struct {
@@ -51,10 +55,17 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		responses.ErrEmailDomainNotAllowed.WriteJSON(w)
 		return
 	}
+
+	if score := zxcvbn.PasswordStrength(creds.Password, []string{}); score.Score < MinPasswordScore {
+		w.WriteHeader(http.StatusForbidden)
+		responses.ErrWeakPassword.WriteJSON(w)
+		return
+	}
+
 	if UserState.HasUser(creds.Email) {
 		if UserState.IsConfirmed(creds.Email) {
 			w.WriteHeader(http.StatusForbidden)
-			responses.ErrUsernameTaken.WriteJSON(w)
+			responses.ErrRegistered.WriteJSON(w)
 			return
 		} else {
 			w.WriteHeader(http.StatusUnauthorized)
