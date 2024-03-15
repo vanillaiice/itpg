@@ -7,9 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/didip/tollbooth"
-	"github.com/didip/tollbooth/limiter"
-	"github.com/didip/tollbooth_negroni"
+	"github.com/go-chi/httprate"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/urfave/negroni"
@@ -17,12 +15,12 @@ import (
 	"github.com/xyproto/pinterface"
 )
 
+// PathType is the type of the path (admin, user, public)
 type PathType int
 
 const (
-	AdminPath  PathType = 0
-	UserPath   PathType = 1
-	PublicPath PathType = 2
+	UserPath   PathType = 0 // UserPath is a path only accessible by users
+	PublicPath PathType = 1 // PublicPath is a path accessible by anyone
 )
 
 // HandlerInfo represents a struct containing information about an HTTP handler.
@@ -30,7 +28,8 @@ type HandlerInfo struct {
 	Path     string                                   // Path specifies the URL pattern for which the handler is responsible.
 	Handler  func(http.ResponseWriter, *http.Request) // Handler is the function that will be called to handle HTTP requests.
 	Method   string                                   // Method specifies the HTTP method associated with the handler.
-	PathType PathType
+	PathType PathType                                 // PathType is the type of the path (admin, user, public)
+	Limiter  func(http.Handler) http.Handler          // Limiter is the limiter used to limit requests
 }
 
 // DataDB represents a pointer to a database connection,
@@ -73,23 +72,23 @@ type RunConfig struct {
 // Run starts the HTTP server on the specified port and connects to the specified database.
 func Run(config *RunConfig) (err error) {
 	if err = validAllowedDomains(config.AllowedMailDomains); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	AllowedMailDomains = config.AllowedMailDomains
 
 	if err = InitCredsSMTP(config.SMTPEnvPath, !config.UseSMTP); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	DataDB, err = db.NewDB(config.DBPath, config.Speed)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer DataDB.Close()
 
 	perm, err := permissionbolt.NewWithConf(config.UsersDBPath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	perm.SetDenyFunction(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -98,7 +97,7 @@ func Run(config *RunConfig) (err error) {
 
 	CookieTimeout = time.Minute * time.Duration(config.CookieTimeout)
 	UserState = perm.UserState()
-	UserState.SetCookieTimeout(int64(time.Minute * CookieTimeout))
+	UserState.SetCookieTimeout(int64(CookieTimeout.Seconds()))
 
 	PasswordResetWebsiteURL = config.PasswordResetWebsiteURL
 
@@ -108,63 +107,77 @@ func Run(config *RunConfig) (err error) {
 		AllowCredentials: true,
 	})
 
-	lmt := tollbooth.NewLimiter(100, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Minute})
-	lmt.SetMessageContentType("application/json")
-	lmt.SetMessage(responses.ErrRequestLimitReached.Error())
-	lmt.SetOnLimitReached(func(w http.ResponseWriter, r *http.Request) {
+	limitHandlerFunc := httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
 		responses.ErrRequestLimitReached.WriteJSON(w)
 	})
 
+	LimiterLenient := httprate.Limit(
+		10,
+		time.Second,
+		httprate.WithKeyFuncs(httprate.KeyByIP),
+		limitHandlerFunc,
+	)
+
+	LimiterModerate := httprate.Limit(
+		10,
+		time.Minute,
+		httprate.WithKeyFuncs(httprate.KeyByIP),
+		limitHandlerFunc,
+	)
+
+	LimiterStrict := httprate.Limit(
+		10,
+		time.Hour,
+		httprate.WithKeyFuncs(httprate.KeyByIP),
+		limitHandlerFunc,
+	)
+
+	LimiterVeryStrict := httprate.Limit(
+		10,
+		6*time.Hour,
+		httprate.WithKeyFuncs(httprate.KeyByIP),
+		limitHandlerFunc,
+	)
+
 	handlers := []*HandlerInfo{
-		// Admin
-		{"/courses/add", AddCourse, http.MethodPost, AdminPath},
-		{"/professors/add", AddProfessor, http.MethodPost, AdminPath},
-		{"/courses/addprof", AddCourseProfessor, http.MethodPost, AdminPath},
-		{"/courses/remove", RemoveCourse, http.MethodDelete, AdminPath},
-		{"/courses/removeforce", RemoveCourseForce, http.MethodDelete, AdminPath},
-		{"/courses/removeprof", RemoveCourseProfessor, http.MethodDelete, AdminPath},
-		{"/professors/remove", RemoveProfessor, http.MethodDelete, AdminPath},
-		{"/professors/removeforce", RemoveProfessorForce, http.MethodDelete, AdminPath},
 		// User
-		{"/courses/grade", GradeCourseProfessor, http.MethodPost, UserPath},
-		{"/refresh", RefreshCookie, http.MethodPost, UserPath},
-		{"/logout", Logout, http.MethodPost, UserPath},
-		{"/clear", ClearCookie, http.MethodPost, UserPath},
-		{"/changepass", ChangePassword, http.MethodPost, UserPath},
-		{"/ping", Ping, http.MethodGet, UserPath},
+		{"/courses/grade", GradeCourseProfessor, http.MethodPost, UserPath, LimiterModerate},
+		{"/refresh", RefreshCookie, http.MethodPost, UserPath, LimiterLenient},
+		{"/logout", Logout, http.MethodPost, UserPath, LimiterLenient},
+		{"/clear", ClearCookie, http.MethodPost, UserPath, LimiterLenient},
+		{"/changepass", ChangePassword, http.MethodPost, UserPath, LimiterStrict},
+		{"/delete", DeleteAccount, http.MethodPost, UserPath, LimiterVeryStrict},
+		{"/ping", Ping, http.MethodGet, UserPath, LimiterLenient},
 		// Public
-		{"/courses", GetLastCourses, http.MethodGet, PublicPath},
-		{"/professors", GetLastProfessors, http.MethodGet, PublicPath},
-		{"/scores", GetLastScores, http.MethodGet, PublicPath},
-		{"/courses/{uuid}", GetCoursesByProfessorUUID, http.MethodGet, PublicPath},
-		{"/professors/{code}", GetProfessorsByCourseCode, http.MethodGet, PublicPath},
-		{"/scores/prof/{uuid}", GetScoresByProfessorUUID, http.MethodGet, PublicPath},
-		{"/scores/profname/{name}", GetScoresByProfessorName, http.MethodGet, PublicPath},
-		{"/scores/profnamelike/{name}", GetScoresByProfessorNameLike, http.MethodGet, PublicPath},
-		{"/scores/coursename/{name}", GetScoresByCourseName, http.MethodGet, PublicPath},
-		{"/scores/coursenamelike/{name}", GetScoresByCourseNameLike, http.MethodGet, PublicPath},
-		{"/scores/coursecode/{code}", GetScoresByCourseCode, http.MethodGet, PublicPath},
-		{"/scores/coursecodelike/{code}", GetScoresByCourseCodeLike, http.MethodGet, PublicPath},
-		{"/login", Login, http.MethodPost, PublicPath},
-		{"/register", Register, http.MethodPost, PublicPath},
-		{"/confirm", Confirm, http.MethodPost, PublicPath},
-		{"/newconfirmationcode", SendNewConfirmationCode, http.MethodPost, PublicPath},
-		{"/sendresetlink", SendResetLink, http.MethodPost, PublicPath},
-		{"/resetpass", ResetPassword, http.MethodPost, PublicPath},
+		{"/courses", GetLastCourses, http.MethodGet, PublicPath, LimiterLenient},
+		{"/professors", GetLastProfessors, http.MethodGet, PublicPath, LimiterLenient},
+		{"/scores", GetLastScores, http.MethodGet, PublicPath, LimiterLenient},
+		{"/courses/{uuid}", GetCoursesByProfessorUUID, http.MethodGet, PublicPath, LimiterLenient},
+		{"/professors/{code}", GetProfessorsByCourseCode, http.MethodGet, PublicPath, LimiterLenient},
+		{"/scores/prof/{uuid}", GetScoresByProfessorUUID, http.MethodGet, PublicPath, LimiterLenient},
+		{"/scores/profname/{name}", GetScoresByProfessorName, http.MethodGet, PublicPath, LimiterLenient},
+		{"/scores/profnamelike/{name}", GetScoresByProfessorNameLike, http.MethodGet, PublicPath, LimiterLenient},
+		{"/scores/coursename/{name}", GetScoresByCourseName, http.MethodGet, PublicPath, LimiterLenient},
+		{"/scores/coursenamelike/{name}", GetScoresByCourseNameLike, http.MethodGet, PublicPath, LimiterLenient},
+		{"/scores/coursecode/{code}", GetScoresByCourseCode, http.MethodGet, PublicPath, LimiterLenient},
+		{"/scores/coursecodelike/{code}", GetScoresByCourseCodeLike, http.MethodGet, PublicPath, LimiterLenient},
+		{"/login", Login, http.MethodPost, PublicPath, LimiterLenient},
+		{"/register", Register, http.MethodPost, PublicPath, LimiterModerate},
+		{"/confirm", Confirm, http.MethodPost, PublicPath, LimiterModerate},
+		{"/newconfirmationcode", SendNewConfirmationCode, http.MethodPost, PublicPath, LimiterStrict},
+		{"/sendresetlink", SendResetLink, http.MethodPost, PublicPath, LimiterVeryStrict},
+		{"/resetpass", ResetPassword, http.MethodPost, PublicPath, LimiterVeryStrict},
 	}
 
 	router := mux.NewRouter()
-
 	for _, h := range handlers {
 		switch h.PathType {
-		case AdminPath:
-			router.Handle(h.Path, checkCookieExpiryMiddleware(h.Handler)).Methods(h.Method)
-			perm.AddAdminPath(h.Path)
 		case UserPath:
-			router.Handle(h.Path, checkCookieExpiryMiddleware(checkConfirmedMiddleware(h.Handler))).Methods(h.Method)
+			router.Handle(h.Path, h.Limiter((checkConfirmedMiddleware(h.Handler)))).Methods(h.Method)
 			perm.AddUserPath(h.Path)
 		case PublicPath:
-			router.HandleFunc(h.Path, h.Handler).Methods(h.Method)
+			router.Handle(h.Path, h.Limiter(DummyMiddleware(h.Handler))).Methods(h.Method)
 			perm.AddPublicPath(h.Path)
 		}
 	}
@@ -172,17 +185,14 @@ func Run(config *RunConfig) (err error) {
 	n := negroni.Classic()
 	n.Use(c)
 	n.Use(perm)
-	n.Use(tollbooth_negroni.LimitHandler(lmt))
 	n.UseHandler(router)
 
 	s := "itpg-backend listening on port " + config.Port
-
 	if !config.UseSMTP {
 		s += " with SMTPS,"
 	} else {
 		s += " with SMTP,"
 	}
-
 	if !config.UseHTTP {
 		log.Printf("%s with HTTPS\n", s)
 		return http.ListenAndServeTLS(":"+config.Port, config.CertFilePath, config.KeyFilePath, n)
