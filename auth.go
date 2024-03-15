@@ -364,7 +364,6 @@ func SendResetLink(w http.ResponseWriter, r *http.Request) {
 	responses.Success.WriteJSON(w)
 }
 
-/*
 // DeleteAccount deletes the account of the currently logged-in user.
 func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	username, ok := r.Context().Value("username").(string)
@@ -374,9 +373,9 @@ func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = UserState.Users().DelKey(username, "cookie-expiry"); err != nil {
+	if err := UserState.Users().DelKey(username, "cookie-expiry"); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		ErrInternal.WriteJSON(w)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
@@ -385,7 +384,6 @@ func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	responses.Success.WriteJSON(w)
 }
-*/
 
 // Ping checks that the user is logged in and that the cookie is not expired.
 func Ping(w http.ResponseWriter, r *http.Request) {}
