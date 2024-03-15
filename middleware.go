@@ -31,6 +31,14 @@ func checkCookieExpiry(username string) error {
 	return nil
 }
 
+// DummyMiddleware is middleware that does nothing.
+// It is used to wrap the go-chi/httprate limiter around a handler
+func DummyMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+	}
+}
+
 // checkCookieExpiryMiddleware is a middleware that checks if the user's session cookie has expired.
 // If the cookie has expired, it writes an Unauthorized response and returns.
 // It calls the next handler if the cookie is valid and has not expired.
