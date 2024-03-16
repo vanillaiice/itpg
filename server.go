@@ -15,12 +15,51 @@ import (
 	"github.com/xyproto/pinterface"
 )
 
-// PathType is the type of the path (admin, user, public)
+// PathType is the type of the path (admin, user, public).
 type PathType int
 
+// Enum for path types
 const (
-	UserPath   PathType = 0 // UserPath is a path only accessible by users
-	PublicPath PathType = 1 // PublicPath is a path accessible by anyone
+	UserPath   PathType = 0 // UserPath is a path only accessible by users.
+	PublicPath PathType = 1 // PublicPath is a path accessible by anyone.
+)
+
+// LimitHandlerFunc is executed when the request limit is reached.
+var LimitHandlerFunc = httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusTooManyRequests)
+	responses.ErrRequestLimitReached.WriteJSON(w)
+})
+
+// LimiterLenient is a limiter that allows 1000 requests per second per IP.
+var LimiterLenient = httprate.Limit(
+	1000,
+	time.Second,
+	httprate.WithKeyFuncs(httprate.KeyByIP),
+	LimitHandlerFunc,
+)
+
+// LimiterModerate is a limiter that allows 1000 requests per minute per IP.
+var LimiterModerate = httprate.Limit(
+	1000,
+	time.Minute,
+	httprate.WithKeyFuncs(httprate.KeyByIP),
+	LimitHandlerFunc,
+)
+
+// LimiterStrict is a limiter that allows 500 requests per hour per IP.
+var LimiterStrict = httprate.Limit(
+	500,
+	time.Hour,
+	httprate.WithKeyFuncs(httprate.KeyByIP),
+	LimitHandlerFunc,
+)
+
+// LimiterVeryStrict is a limiter that allows 100 requests per hour per IP.
+var LimiterVeryStrict = httprate.Limit(
+	100,
+	1*time.Hour,
+	httprate.WithKeyFuncs(httprate.KeyByIP),
+	LimitHandlerFunc,
 )
 
 // HandlerInfo represents a struct containing information about an HTTP handler.
@@ -107,39 +146,6 @@ func Run(config *RunConfig) (err error) {
 		AllowCredentials: true,
 	})
 
-	limitHandlerFunc := httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusTooManyRequests)
-		responses.ErrRequestLimitReached.WriteJSON(w)
-	})
-
-	LimiterLenient := httprate.Limit(
-		10,
-		time.Second,
-		httprate.WithKeyFuncs(httprate.KeyByIP),
-		limitHandlerFunc,
-	)
-
-	LimiterModerate := httprate.Limit(
-		10,
-		time.Minute,
-		httprate.WithKeyFuncs(httprate.KeyByIP),
-		limitHandlerFunc,
-	)
-
-	LimiterStrict := httprate.Limit(
-		10,
-		time.Hour,
-		httprate.WithKeyFuncs(httprate.KeyByIP),
-		limitHandlerFunc,
-	)
-
-	LimiterVeryStrict := httprate.Limit(
-		10,
-		6*time.Hour,
-		httprate.WithKeyFuncs(httprate.KeyByIP),
-		limitHandlerFunc,
-	)
-
 	handlers := []*HandlerInfo{
 		// User
 		{"/courses/grade", GradeCourseProfessor, http.MethodPost, UserPath, LimiterModerate},
@@ -174,7 +180,7 @@ func Run(config *RunConfig) (err error) {
 	for _, h := range handlers {
 		switch h.PathType {
 		case UserPath:
-			router.Handle(h.Path, h.Limiter((checkConfirmedMiddleware(h.Handler)))).Methods(h.Method)
+			router.Handle(h.Path, h.Limiter(checkCookieExpiryMiddleware(checkConfirmedMiddleware(h.Handler)))).Methods(h.Method)
 			perm.AddUserPath(h.Path)
 		case PublicPath:
 			router.Handle(h.Path, h.Limiter(DummyMiddleware(h.Handler))).Methods(h.Method)
