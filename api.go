@@ -357,7 +357,7 @@ func GetScoresByCourseCodeLike(w http.ResponseWriter, r *http.Request) {
 
 // GradeCourseProfessor handles the HTTP request to grade a professor for a specific course.
 func GradeCourseProfessor(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value("username").(string)
+	username, ok := r.Context().Value(UsernameContextKey).(string)
 	if !ok || username == "" {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)

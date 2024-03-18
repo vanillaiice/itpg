@@ -72,7 +72,7 @@ func TestCheckCookieExpiry(t *testing.T) {
 
 	UserState.Users().Set(
 		creds.Email,
-		"cookie-expiry",
+		CookieExpiryUserStateKey,
 		time.Now().Add(-time.Hour).Format(time.UnixDate),
 	)
 
@@ -109,7 +109,7 @@ func TestCheckConfirmedMiddleware_Unconfirmed(t *testing.T) {
 	}
 	r.AddCookie(c)
 
-	r = r.WithContext(context.WithValue(r.Context(), "username", creds.Email))
+	r = r.WithContext(context.WithValue(r.Context(), UsernameContextKey, creds.Email))
 	middleware.ServeHTTP(w, r)
 
 	if w.Code != http.StatusUnauthorized {
@@ -151,7 +151,7 @@ func TestCheckCookieExpiryMiddleware(t *testing.T) {
 
 	UserState.Users().Set(
 		creds.Email,
-		"cookie-expiry",
+		CookieExpiryUserStateKey,
 		time.Now().Add(-time.Hour).Format(time.UnixDate),
 	)
 
@@ -189,7 +189,7 @@ func TestCheckConfirmedMiddleware_Confirmed(t *testing.T) {
 	}
 	r.AddCookie(c)
 
-	r = r.WithContext(context.WithValue(r.Context(), "username", creds.Email))
+	r = r.WithContext(context.WithValue(r.Context(), UsernameContextKey, creds.Email))
 	middleware.ServeHTTP(w, r)
 
 	if w.Code != http.StatusOK {

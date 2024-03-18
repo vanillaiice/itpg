@@ -192,7 +192,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = UserState.Users().Set(creds.Email, "cookie-expiry", time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
+	if err = UserState.Users().Set(creds.Email, CookieExpiryUserStateKey, time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -210,7 +210,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 // Logout logs out the currently logged-in user by removing their session.
 func Logout(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value("username").(string)
+	username, ok := r.Context().Value(UsernameContextKey).(string)
 	if !ok || username == "" {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
@@ -238,14 +238,14 @@ func ClearCookie(w http.ResponseWriter, r *http.Request) {
 
 // RefreshCookie refreshes the cookie for the current user session by updating its expiry time.
 func RefreshCookie(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value("username").(string)
+	username, ok := r.Context().Value(UsernameContextKey).(string)
 	if !ok || username == "" {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 
-	if err := UserState.Users().Set(username, "cookie-expiry", time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
+	if err := UserState.Users().Set(username, CookieExpiryUserStateKey, time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -263,7 +263,7 @@ func RefreshCookie(w http.ResponseWriter, r *http.Request) {
 
 // ChangePassword changes the account password of a currently logged-in user.
 func ChangePassword(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value("username").(string)
+	username, ok := r.Context().Value(UsernameContextKey).(string)
 	if !ok || username == "" {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
@@ -388,7 +388,7 @@ func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := UserState.Users().DelKey(creds.Email, "cookie-expiry"); err != nil {
+	if err := UserState.Users().DelKey(creds.Email, CookieExpiryUserStateKey); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return

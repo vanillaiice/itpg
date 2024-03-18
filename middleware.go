@@ -7,11 +7,19 @@ import (
 	"time"
 )
 
+// UsernameContextKey is the key in the request's context to set
+// the username for use in subsequent middleware.
+const UsernameContextKey = "username"
+
+// CookieExpiryUserStateKey is the key in the Userstate database
+// use to retrieve the expiry time of a session cookie.
+const CookieExpiryUserStateKey = "cookie-expiry"
+
 // checkCookieExpiry checks if the user's session cookie has expired.
 // If the cookie has expired, it logs out the user, writes an Unauthorized response, and returns an error.
 // It returns nil if the cookie is valid and has not expired.
 func checkCookieExpiry(username string) error {
-	cookieExpiry, err := UserState.Users().Get(username, "cookie-expiry")
+	cookieExpiry, err := UserState.Users().Get(username, CookieExpiryUserStateKey)
 	if err != nil {
 		return responses.ErrInvalidCookie
 	}
@@ -52,7 +60,7 @@ func checkCookieExpiryMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if expired := checkCookieExpiry(username); expired == nil {
-			r = r.WithContext(context.WithValue(r.Context(), "username", username))
+			r = r.WithContext(context.WithValue(r.Context(), UsernameContextKey, username))
 			next.ServeHTTP(w, r)
 		} else {
 			switch err {
@@ -75,7 +83,7 @@ func checkCookieExpiryMiddleware(next http.HandlerFunc) http.HandlerFunc {
 // It calls the next handler if the user is confirmed.
 func checkConfirmedMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, ok := r.Context().Value("username").(string)
+		username, ok := r.Context().Value(UsernameContextKey).(string)
 		if !ok || username == "" {
 			w.WriteHeader(http.StatusInternalServerError)
 			responses.ErrInternal.WriteJSON(w)

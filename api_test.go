@@ -558,7 +558,7 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 		Value: cookie.Value,
 	}
 	r.AddCookie(c)
-	r = r.WithContext(context.WithValue(r.Context(), "username", creds.Email))
+	r = r.WithContext(context.WithValue(r.Context(), UsernameContextKey, creds.Email))
 	GradeCourseProfessor(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
