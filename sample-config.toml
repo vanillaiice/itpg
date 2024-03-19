@@ -1,0 +1,15 @@
+# ITPG backend config
+
+db = "itpg.db"
+users-db = "users.db"
+db-speed = true
+port = "6666"
+http = false
+smtp = false
+cookie-timeout = 60
+pass-reset-url = "https://itpg.cc/changepass" 
+env-path = ".env"
+allowed-origins = ["https://itpg.cc"]
+allowed-mail-domains = ["gmail.com", "yahoo.com", "tutanota.com", "outlook.com"]
+cert-file = "server.crt"
+key-file = "server.key"
