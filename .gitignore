@@ -12,3 +12,6 @@ Makefile
 
 # Ignore Husky hooks
 .husky
+
+# Ignore config files
+config*
