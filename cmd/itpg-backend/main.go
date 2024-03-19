@@ -6,91 +6,121 @@ import (
 	"os"
 
 	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
 )
 
 func main() {
 	app := &cli.App{
 		Name:    "itpg-backend",
 		Suggest: true,
-		Version: "v0.1.11",
+		Version: "v0.1.12",
 		Authors: []*cli.Author{{Name: "vanillaiice", Email: "vanillaiice1@proton.me"}},
 		Usage:   "Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.",
 		Flags: []cli.Flag{
+			altsrc.NewStringFlag(
+				&cli.StringFlag{
+					Name:    "port",
+					Aliases: []string{"p"},
+					Usage:   "listen on `PORT`",
+					Value:   "443",
+				},
+			),
+			altsrc.NewPathFlag(
+				&cli.PathFlag{
+					Name:    "db",
+					Aliases: []string{"d"},
+					Usage:   "professors, courses and scores sqlite database",
+					Value:   "itpg.db",
+				},
+			),
+			altsrc.NewBoolFlag(
+				&cli.BoolFlag{
+					Name:    "db-speed",
+					Aliases: []string{"b"},
+					Usage:   "prioritize database transaction speed at the cost of data integrity",
+					Value:   false,
+				},
+			),
+			altsrc.NewPathFlag(
+				&cli.PathFlag{
+					Name:    "users-db",
+					Aliases: []string{"u"},
+					Usage:   "user state management bolt database",
+					Value:   "users.db",
+				},
+			),
+			altsrc.NewIntFlag(
+				&cli.IntFlag{
+					Name:    "cookie-timeout",
+					Aliases: []string{"i"},
+					Usage:   "cookie timeout in minutes",
+					Value:   30,
+				},
+			),
+
+			altsrc.NewPathFlag(
+				&cli.PathFlag{
+					Name:    "env-path",
+					Aliases: []string{"e"},
+					Usage:   "SMTP configuration file",
+					Value:   ".env",
+				},
+			),
+			altsrc.NewStringFlag(
+				&cli.StringFlag{
+					Name:    "pass-reset-url",
+					Aliases: []string{"r"},
+					Usage:   "URL of the password reset web page",
+				},
+			),
+			altsrc.NewStringSliceFlag(
+				&cli.StringSliceFlag{
+					Name:    "allowed-origins",
+					Aliases: []string{"o"},
+					Usage:   "only allow specified origins to access resources",
+				},
+			),
+			altsrc.NewStringSliceFlag(
+				&cli.StringSliceFlag{
+					Name:    "allowed-mail-domains",
+					Aliases: []string{"m"},
+					Usage:   "only allow specified mail domains to register",
+				},
+			),
+			altsrc.NewBoolFlag(
+				&cli.BoolFlag{
+					Name:    "smtp",
+					Usage:   "use SMTP instead of SMTPS",
+					Aliases: []string{"s"},
+					Value:   false,
+				},
+			),
+			altsrc.NewBoolFlag(
+				&cli.BoolFlag{
+					Name:    "http",
+					Usage:   "use HTTP instead of HTTPS",
+					Aliases: []string{"t"},
+					Value:   false,
+				},
+			),
+			altsrc.NewPathFlag(
+				&cli.PathFlag{
+					Name:    "cert-file",
+					Aliases: []string{"c"},
+					Usage:   "SSL certificate file",
+				},
+			),
+			altsrc.NewPathFlag(
+				&cli.PathFlag{
+					Name:    "key-file",
+					Aliases: []string{"k"},
+					Usage:   "SSL secret key file",
+				},
+			),
 			&cli.StringFlag{
-				Name:    "port",
-				Aliases: []string{"p"},
-				Usage:   "listen on `PORT`",
-				Value:   "443",
-			},
-			&cli.PathFlag{
-				Name:    "db",
-				Aliases: []string{"d"},
-				Usage:   "professors, courses and scores sqlite database",
-				Value:   "itpg.db",
-			},
-			&cli.BoolFlag{
-				Name:    "db-speed",
-				Aliases: []string{"b"},
-				Usage:   "prioritize database transaction speed at the cost of data integrity",
-				Value:   false,
-			},
-			&cli.PathFlag{
-				Name:    "users-db",
-				Aliases: []string{"u"},
-				Usage:   "user state management bolt database",
-				Value:   "users.db",
-			},
-			&cli.IntFlag{
-				Name:    "cookie-timeout",
-				Aliases: []string{"i"},
-				Usage:   "cookie timeout in minutes",
-				Value:   30,
-			},
-			&cli.PathFlag{
-				Name:    "env",
-				Aliases: []string{"e"},
-				Usage:   "SMTP configuration file",
-				Value:   ".env",
-			},
-			&cli.StringFlag{
-				Name:     "pass-reset-url",
-				Aliases:  []string{"r"},
-				Usage:    "URL of the password reset web page",
-				Required: true,
-			},
-			&cli.StringSliceFlag{
-				Name:     "allowed-origins",
-				Aliases:  []string{"o"},
-				Usage:    "only allow specified origins to access resources",
-				Required: true,
-			},
-			&cli.StringSliceFlag{
-				Name:     "allowed-mail-domains",
-				Aliases:  []string{"m"},
-				Usage:    "only allow specified mail domains to register",
-				Required: true,
-			},
-			&cli.BoolFlag{
-				Name:    "smtp",
-				Usage:   "use SMTP instead of SMTPS",
-				Aliases: []string{"s"},
-				Value:   false,
-			},
-			&cli.BoolFlag{
-				Name:    "http",
-				Usage:   "use HTTP instead of HTTPS",
-				Aliases: []string{"t"},
-				Value:   false,
-			},
-			&cli.PathFlag{
-				Name:    "cert-file",
-				Aliases: []string{"c"},
-				Usage:   "SSL certificate file",
-			},
-			&cli.PathFlag{
-				Name:    "key-file",
-				Aliases: []string{"k"},
-				Usage:   "SSL secret key file",
+				Name:    "load",
+				Aliases: []string{"l"},
+				Usage:   "load TOML config from file",
 			},
 		},
 		Action: func(ctx *cli.Context) error {
@@ -100,7 +130,7 @@ func main() {
 					DBPath:                  ctx.Path("db"),
 					UsersDBPath:             ctx.Path("users-db"),
 					CookieTimeout:           ctx.Int("cookie-timeout"),
-					SMTPEnvPath:             ctx.Path("env"),
+					SMTPEnvPath:             ctx.Path("env-path"),
 					PasswordResetWebsiteURL: ctx.String("pass-reset-url"),
 					Speed:                   ctx.Bool("speed"),
 					AllowedOrigins:          ctx.StringSlice("allowed-origins"),
@@ -113,6 +143,8 @@ func main() {
 			)
 		},
 	}
+
+	app.Before = altsrc.InitInputSourceWithContext(app.Flags, altsrc.NewTomlSourceFromFlagFunc("load"))
 
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
