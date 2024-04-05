@@ -1,5 +1,5 @@
 bin
-config.toml
+*.toml
 Dockerfile
 .dockerignore
 .env
@@ -11,3 +11,4 @@ LICENSE.txt
 Makefile
 README.md
 *.env
+smtp-env-sample
