@@ -1,0 +1,13 @@
+bin
+config.toml
+Dockerfile
+.dockerignore
+.env
+.git
+.gitignore
+.husky
+*.db
+LICENSE.txt
+Makefile
+README.md
+*.env
