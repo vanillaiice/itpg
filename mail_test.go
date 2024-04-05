@@ -32,13 +32,16 @@ func TestSendMailSMTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer server.Stop()
 
 	SMTPURL = fmt.Sprintf("127.0.0.1:%d", server.PortNumber())
 	MailFromAddress = "testing@test.com"
 
 	if err := SendMailSMTP("takumi@fuji.ae", []byte("iamsuperduperfastondownhills")); err != nil {
 		t.Error(err)
+	}
+
+	if err = server.Stop(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -47,7 +50,6 @@ func TestSendMailSMTPS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer server.Stop()
 
 	Username = "tester"
 	Password = "testtter"
@@ -60,4 +62,8 @@ func TestSendMailSMTPS(t *testing.T) {
 		t.Error(err)
 	}
 	*/
+
+	if err = server.Stop(); err != nil {
+		t.Fatal(err)
+	}
 }

@@ -1,0 +1,8 @@
+# SAMPLE ENV FILE
+# This file should not be shared.
+# In production, its name should start with a DOT.
+SMTP_HOST = "mail.foo.com"
+SMTP_PORT = "587"
+MAIL_FROM = "bar@foo.com"
+USERNAME = "foo"
+PASSWORD = "bar"

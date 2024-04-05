@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"itpg/db"
 	"itpg/responses"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -253,7 +252,9 @@ func TestServerGetLastCourses(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp == 0 {
 		t.Errorf("got len = 0, want %s", "> 0")
@@ -279,7 +280,9 @@ func TestServerGetLastProfessors(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp == 0 {
 		t.Errorf("got len = 0, want %s", "> 0")
@@ -302,7 +305,9 @@ func TestServerGetLastScores(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp == 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -327,7 +332,9 @@ func TestServerGetCoursesByProfessorUUID(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -352,7 +359,9 @@ func TestServerGetProfessorsByCourseCode(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -377,7 +386,9 @@ func TestServerGetScoresByProfessorUUID(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -402,7 +413,9 @@ func TestServerGetScoresByProfessorName(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -427,7 +440,9 @@ func TestServerGetScoresByProfessorNameLike(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -452,7 +467,9 @@ func TestServerGetScoresByCourseName(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -477,7 +494,9 @@ func TestServerGetScoresByCourseNameLike(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 2 {
 		t.Errorf("got %d, want %d", lresp, 2)
@@ -502,7 +521,9 @@ func TestServerGetScoresByCourseCode(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -527,7 +548,9 @@ func TestServerGetScoresByCourseCodeLike(t *testing.T) {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
 	}
 	resp := &responses.Response{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err = json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	lresp := len(resp.Message.([]interface{}))
 	if lresp != 1 {
 		t.Errorf("got %d, want %d", lresp, 1)
@@ -546,12 +569,14 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 	rr := httptest.NewRecorder()
 	err = initTestUserState()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	defer removeUserState()
 	UserState.AddUser(creds.Email, creds.Password, "")
 	UserState.Confirm(creds.Email)
-	UserState.Login(rr, creds.Email)
+	if err := UserState.Login(rr, creds.Email); err != nil {
+		t.Fatal(err)
+	}
 	cookie := rr.Result().Cookies()[0]
 	c := &http.Cookie{
 		Name:  cookie.Name,

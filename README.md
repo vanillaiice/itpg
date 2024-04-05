@@ -4,6 +4,20 @@ Backend for itpg, which is a platform where students can grade their professors 
 This permits future students to make more informed decisions when choosing their courses.
 This repository handles http requests, database transactions, and user state management.
 
+# Installation
+
+## Go install
+
+```sh
+$ go install github.com/vanillaiice/itpg/cmd/itpg@latest
+```
+
+## Docker
+
+```sh
+$ docker pull vanillaiice/itpg:latest
+```
+
 # Usage
 
 ```sh
@@ -39,6 +53,31 @@ GLOBAL OPTIONS:
    --load value, -l value                                                             load TOML config from file
    --help, -h                                                                         show help
    --version, -v                                                                      print the version
+```
+
+# Examples
+
+## Using Go
+
+If itpg was installed using `go install`, you can simply run it from the command line.
+
+However, there should be an .env file containing the SMTP credentials needed to send confirmation emails.
+
+```sh
+# run the server with HTTP and pass an env file
+$ itpg -t -e .smtp-env
+
+# run the server with a TOML config file
+$ itpg -l config.toml
+```
+
+## Using Docker
+
+```sh
+# run the server with HTTPS and pass a TOML config file
+$ ls itpg-data
+# output: server.crt cert.key config.toml
+$ docker run --rm -v ${PWD}/itpg-data:/itpg-data vanillaiice/itpg --load itpg-data/config.toml
 ```
 
 # Author
