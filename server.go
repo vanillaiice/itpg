@@ -1,7 +1,10 @@
 package itpg
 
 import (
+	"fmt"
 	"itpg/db"
+	"itpg/db/postgres"
+	"itpg/db/sqlite"
 	"itpg/responses"
 	"log"
 	"net/http"
@@ -22,6 +25,16 @@ type PathType int
 const (
 	UserPath   PathType = 0 // UserPath is a path only accessible by users.
 	PublicPath PathType = 1 // PublicPath is a path accessible by anyone.
+	AdminPath  PathType = 2 // AdminPath is a path accessible by admins.
+)
+
+// DatabaseBackend is the type of database backend to use.
+type DatabaseBackend string
+
+// Enum for datbase backend
+const (
+	Sqlite   DatabaseBackend = "sqlite"
+	Postgres DatabaseBackend = "postgres"
 )
 
 // LimitHandlerFunc is executed when the request limit is reached.
@@ -71,10 +84,10 @@ type HandlerInfo struct {
 	Limiter  func(http.Handler) http.Handler          // Limiter is the limiter used to limit requests
 }
 
-// DataDB represents a pointer to a database connection,
+// DataDB represents a database connection,
 // storing professor names, course codes and names,
 // and professor scores.
-var DataDB *db.DB
+var DataDB db.DB
 
 // UserState stores the state of all users.
 var UserState pinterface.IUserState
@@ -93,19 +106,20 @@ var CookieTimeout time.Duration
 
 // RunConfig defines the server's configuration settings.
 type RunConfig struct {
-	Port                    string   // Port on which the server will run
-	DBPath                  string   // Path to the SQLite database file
-	Speed                   bool     // Whether to use prioritize database transaction speed at the cost of data integrity
-	UsersDBPath             string   // Path to the users BOLT database file
-	SMTPEnvPath             string   // Path to the .env file containing SMTP configuration
-	PasswordResetWebsiteURL string   // URL to the password reset website page
-	AllowedOrigins          []string // List of allowed origins for CORS
-	AllowedMailDomains      []string // List of allowed mail domains for registering with the service
-	UseSMTP                 bool     // Whether to use SMTP (false for SMTPS)
-	UseHTTP                 bool     // Whether to use HTTP (false for HTTPS)
-	CertFilePath            string   // Path to the certificate file (required for HTTPS)
-	KeyFilePath             string   // Path to the key file (required for HTTPS)
-	CookieTimeout           int      // Duration in minute after which a session cookie expires
+	Port                    string          // Port on which the server will run
+	DBPath                  string          // Path to the SQLite database file
+	DBBackend               DatabaseBackend // Database backend type
+	Speed                   bool            // Whether to use prioritize database transaction speed at the cost of data integrity
+	UsersDBPath             string          // Path to the users BOLT database file
+	SMTPEnvPath             string          // Path to the .env file containing SMTP configuration
+	PasswordResetWebsiteURL string          // URL to the password reset website page
+	AllowedOrigins          []string        // List of allowed origins for CORS
+	AllowedMailDomains      []string        // List of allowed mail domains for registering with the service
+	UseSMTP                 bool            // Whether to use SMTP (false for SMTPS)
+	UseHTTP                 bool            // Whether to use HTTP (false for HTTPS)
+	CertFilePath            string          // Path to the certificate file (required for HTTPS)
+	KeyFilePath             string          // Path to the key file (required for HTTPS)
+	CookieTimeout           int             // Duration in minute after which a session cookie expires
 }
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
@@ -119,10 +133,19 @@ func Run(config *RunConfig) (err error) {
 		return err
 	}
 
-	DataDB, err = db.NewDB(config.DBPath, config.Speed)
+	switch config.DBBackend {
+	case Sqlite:
+		DataDB, err = sqlite.New(config.DBPath, config.Speed)
+	case Postgres:
+		DataDB, err = postgres.New(config.DBPath, config.Speed)
+	default:
+		return fmt.Errorf("invalid database backend: %s", string(config.DBBackend))
+	}
+
 	if err != nil {
 		return err
 	}
+
 	defer DataDB.Close()
 
 	perm, err := permissionbolt.NewWithConf(config.UsersDBPath)
@@ -146,9 +169,10 @@ func Run(config *RunConfig) (err error) {
 		AllowCredentials: true,
 	})
 
+	// parse from json or toml file: handlers.toml
 	handlers := []*HandlerInfo{
 		// User
-		{"/courses/grade", GradeCourseProfessor, http.MethodPost, UserPath, LimiterModerate},
+		{"/course/grade", GradeCourseProfessor, http.MethodPost, UserPath, LimiterModerate},
 		{"/refresh", RefreshCookie, http.MethodPost, UserPath, LimiterLenient},
 		{"/logout", Logout, http.MethodPost, UserPath, LimiterLenient},
 		{"/clear", ClearCookie, http.MethodPost, UserPath, LimiterLenient},
@@ -156,24 +180,31 @@ func Run(config *RunConfig) (err error) {
 		{"/delete", DeleteAccount, http.MethodPost, UserPath, LimiterVeryStrict},
 		{"/ping", Ping, http.MethodGet, UserPath, LimiterLenient},
 		// Public
-		{"/courses", GetLastCourses, http.MethodGet, PublicPath, LimiterLenient},
-		{"/professors", GetLastProfessors, http.MethodGet, PublicPath, LimiterLenient},
-		{"/scores", GetLastScores, http.MethodGet, PublicPath, LimiterLenient},
-		{"/courses/{uuid}", GetCoursesByProfessorUUID, http.MethodGet, PublicPath, LimiterLenient},
-		{"/professors/{code}", GetProfessorsByCourseCode, http.MethodGet, PublicPath, LimiterLenient},
-		{"/scores/prof/{uuid}", GetScoresByProfessorUUID, http.MethodGet, PublicPath, LimiterLenient},
-		{"/scores/profname/{name}", GetScoresByProfessorName, http.MethodGet, PublicPath, LimiterLenient},
-		{"/scores/profnamelike/{name}", GetScoresByProfessorNameLike, http.MethodGet, PublicPath, LimiterLenient},
-		{"/scores/coursename/{name}", GetScoresByCourseName, http.MethodGet, PublicPath, LimiterLenient},
-		{"/scores/coursenamelike/{name}", GetScoresByCourseNameLike, http.MethodGet, PublicPath, LimiterLenient},
-		{"/scores/coursecode/{code}", GetScoresByCourseCode, http.MethodGet, PublicPath, LimiterLenient},
-		{"/scores/coursecodelike/{code}", GetScoresByCourseCodeLike, http.MethodGet, PublicPath, LimiterLenient},
+		{"/course/all", GetLastCourses, http.MethodGet, PublicPath, LimiterLenient},
+		{"/professor/all", GetLastProfessors, http.MethodGet, PublicPath, LimiterLenient},
+		{"/score/all", GetLastScores, http.MethodGet, PublicPath, LimiterLenient},
+		{"/course/{uuid}", GetCoursesByProfessorUUID, http.MethodGet, PublicPath, LimiterLenient},
+		{"/professor/{code}", GetProfessorsByCourseCode, http.MethodGet, PublicPath, LimiterLenient},
+		{"/score/prof/{uuid}", GetScoresByProfessorUUID, http.MethodGet, PublicPath, LimiterLenient},
+		{"/score/profname/{name}", GetScoresByProfessorName, http.MethodGet, PublicPath, LimiterLenient},
+		{"/score/profnamelike/{name}", GetScoresByProfessorNameLike, http.MethodGet, PublicPath, LimiterLenient},
+		{"/score/coursename/{name}", GetScoresByCourseName, http.MethodGet, PublicPath, LimiterLenient},
+		{"/score/coursenamelike/{name}", GetScoresByCourseNameLike, http.MethodGet, PublicPath, LimiterLenient},
+		{"/score/coursecode/{code}", GetScoresByCourseCode, http.MethodGet, PublicPath, LimiterLenient},
+		{"/score/coursecodelike/{code}", GetScoresByCourseCodeLike, http.MethodGet, PublicPath, LimiterLenient},
 		{"/login", Login, http.MethodPost, PublicPath, LimiterLenient},
 		{"/register", Register, http.MethodPost, PublicPath, LimiterModerate},
 		{"/confirm", Confirm, http.MethodPost, PublicPath, LimiterModerate},
 		{"/newconfirmationcode", SendNewConfirmationCode, http.MethodPost, PublicPath, LimiterStrict},
 		{"/sendresetlink", SendResetLink, http.MethodPost, PublicPath, LimiterVeryStrict},
 		{"/resetpass", ResetPassword, http.MethodPost, PublicPath, LimiterVeryStrict},
+		// Admin
+		{"course/add", AddCourse, http.MethodPost, AdminPath, LimiterLenient},
+		{"course/remove", RemoveCourse, http.MethodDelete, AdminPath, LimiterLenient},
+		{"course/removeforce", RemoveCourseForce, http.MethodDelete, AdminPath, LimiterLenient},
+		{"professor/add", AddProfessor, http.MethodDelete, AdminPath, LimiterLenient},
+		{"professor/remove", RemoveProfessor, http.MethodDelete, AdminPath, LimiterLenient},
+		{"professor/removeforce", RemoveProfessorForce, http.MethodDelete, AdminPath, LimiterLenient},
 	}
 
 	router := mux.NewRouter()

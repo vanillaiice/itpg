@@ -25,7 +25,7 @@ func AddCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := DataDB.AddCourse(&db.Course{Code: courseCode, Name: courseName}); err != nil {
+	if err := DataDB.AddCourse(&db.Course{Code: courseCode, Name: courseName}); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -42,24 +42,7 @@ func AddProfessor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := DataDB.AddProfessor(fullName); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		responses.ErrInternal.WriteJSON(w)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	responses.Success.WriteJSON(w)
-}
-
-// AddCourseProfessor handles the HTTP request to associate a course with a professor.
-func AddCourseProfessor(w http.ResponseWriter, r *http.Request) {
-	professorUUID, courseCode := r.FormValue("uuid"), r.FormValue("code")
-	if err := isEmptyStr(w, professorUUID, courseCode); err != nil {
-		return
-	}
-
-	if _, err := DataDB.AddCourseProfessor(professorUUID, courseCode); err != nil {
+	if err := DataDB.AddProfessor(fullName); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -76,7 +59,7 @@ func RemoveCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := DataDB.RemoveCourse(courseCode, false); err != nil {
+	if err := DataDB.RemoveCourse(courseCode, false); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -93,24 +76,7 @@ func RemoveCourseForce(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := DataDB.RemoveCourse(courseCode, true); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		responses.ErrInternal.WriteJSON(w)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	responses.Success.WriteJSON(w)
-}
-
-// RemoveCourseProfessor handles the HTTP request to disassociate a course from a professor.
-func RemoveCourseProfessor(w http.ResponseWriter, r *http.Request) {
-	professorUUID, courseCode := r.FormValue("uuid"), r.FormValue("code")
-	if err := isEmptyStr(w, professorUUID, courseCode); err != nil {
-		return
-	}
-
-	if _, err := DataDB.RemoveCourseProfessor(professorUUID, courseCode); err != nil {
+	if err := DataDB.RemoveCourse(courseCode, true); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -127,7 +93,7 @@ func RemoveProfessor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := DataDB.RemoveProfessor(professorUUID, false); err != nil {
+	if err := DataDB.RemoveProfessor(professorUUID, false); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -144,7 +110,7 @@ func RemoveProfessorForce(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := DataDB.RemoveProfessor(professorUUID, true); err != nil {
+	if err := DataDB.RemoveProfessor(professorUUID, true); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -370,7 +336,7 @@ func GradeCourseProfessor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	grades := [3]float32{gradeData.GradeTeaching, gradeData.GradeCoursework, gradeData.GradeLearning}
-	if _, err := DataDB.GradeCourseProfessor(gradeData.ProfUUID, gradeData.CourseCode, username, grades); err != nil {
+	if err := DataDB.GradeCourseProfessor(gradeData.ProfUUID, gradeData.CourseCode, username, grades); err != nil {
 		if errors.Is(err, responses.ErrCourseGraded) {
 			w.WriteHeader(http.StatusForbidden)
 			responses.ErrCourseGraded.WriteJSON(w)

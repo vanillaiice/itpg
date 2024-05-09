@@ -13,7 +13,7 @@ func main() {
 	app := &cli.App{
 		Name:    "itpg-backend",
 		Suggest: true,
-		Version: "v0.1.13",
+		Version: "v0.2.0",
 		Authors: []*cli.Author{{Name: "vanillaiice", Email: "vanillaiice1@proton.me"}},
 		Usage:   "Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.",
 		Flags: []cli.Flag{
@@ -25,12 +25,20 @@ func main() {
 					Value:   "443",
 				},
 			),
-			altsrc.NewPathFlag(
-				&cli.PathFlag{
+			altsrc.NewStringFlag(
+				&cli.StringFlag{
 					Name:    "db",
 					Aliases: []string{"d"},
 					Usage:   "professors, courses and scores sqlite database",
 					Value:   "itpg.db",
+				},
+			),
+			altsrc.NewStringFlag(
+				&cli.StringFlag{
+					Name:    "db-backend",
+					Aliases: []string{"n"},
+					Usage:   "database backend: sqlite or postgres",
+					Value:   "sqlite",
 				},
 			),
 			altsrc.NewBoolFlag(
@@ -127,7 +135,8 @@ func main() {
 			return itpg.Run(
 				&itpg.RunConfig{
 					Port:                    ctx.String("port"),
-					DBPath:                  ctx.Path("db"),
+					DBPath:                  ctx.String("db"),
+					DBBackend:               itpg.DatabaseBackend(ctx.String("db-backend")),
 					UsersDBPath:             ctx.Path("users-db"),
 					CookieTimeout:           ctx.Int("cookie-timeout"),
 					SMTPEnvPath:             ctx.Path("env-path"),

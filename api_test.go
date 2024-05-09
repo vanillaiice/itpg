@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"itpg/db"
+	"itpg/db/sqlite"
 	"itpg/responses"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -19,51 +22,56 @@ var professorNames = []string{
 	"Pippy Peepee Poopypants",
 	"Professor Oak",
 }
+
 var courses = []*db.Course{
 	{Code: "S209", Name: "How to replace head gaskets"},
 	{Code: "CN9A", Name: "Controlling the Anti Lag System"},
 	{Code: "AE86", Name: "How to beat any car"},
 }
+
 var professors = []*db.Professor{}
+
 var scores = []*db.Score{}
 
-func initDB(path ...string) (*db.DB, error) {
+func initDB(path ...string) (db.DB, error) {
 	if len(path) == 0 {
 		path = append(path, ":memory:")
 	}
-	db, err := db.NewDB(path[0], true)
+
+	db, err := sqlite.New(path[0], true)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, c := range courses {
-		_, err := db.AddCourse(c)
-		if err != nil {
-			return nil, err
-		}
+	if err = db.AddCourseMany(courses); err != nil {
+		return nil, err
 	}
 
-	for _, p := range professorNames {
-		_, err := db.AddProfessor(p)
-		if err != nil {
-			return nil, err
-		}
+	if err = db.AddProfessorMany(professorNames); err != nil {
+		return nil, err
 	}
+
 	professors, err = db.GetLastProfessors()
 	if err != nil {
 		return nil, err
 	}
 
-	for i := 0; i < len(professors) && i < len(courses); i++ {
-		_, err := db.AddCourseProfessor(professors[i].UUID, courses[i].Code)
+	slices.Reverse(professors)
+
+	for i := 0; i < len(professors); i++ {
+		profScores := [3]float32{rand.Float32() * 5, rand.Float32() * 5, rand.Float32() * 5}
+		err = db.GradeCourseProfessor(professors[i].UUID, courses[i].Code, "jim", profScores)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	scores, err = db.GetLastScores()
 	if err != nil {
 		return nil, err
 	}
+
+	slices.Reverse(scores)
 
 	return db, err
 }
@@ -102,7 +110,7 @@ func TestServerAddProfessor(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("POST", "/professors/add?fullname=Gintoki%20Sakata%20Senpai", nil)
+	r, err := http.NewRequest("POST", "/professor/add?fullname=Gintoki%20Sakata%20Senpai", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,33 +124,13 @@ func TestServerAddProfessor(t *testing.T) {
 	}
 }
 
-func TestServerAddCourseProfessor(t *testing.T) {
-	err := dbInit()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer DataDB.Close()
-	r, err := http.NewRequest("POST", fmt.Sprintf("/courses/addprof?uuid=%s&code=S209", professors[1].UUID), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	AddCourseProfessor(rr, r)
-	if rr.Code != http.StatusOK {
-		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
-	}
-	if rr.Body.String() != responses.Success.Error() {
-		t.Errorf("got %s, want %s", rr.Body.String(), responses.Success.Error())
-	}
-}
-
 func TestServerRemoveCourse(t *testing.T) {
 	err := dbInit()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("DELETE", "/courses/remove?code=S209", nil)
+	r, err := http.NewRequest("DELETE", "/course/remove?code=S209", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,32 +150,12 @@ func TestServerRemoveCourseForce(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("DELETE", "/courses/removeforce?code=S209", nil)
+	r, err := http.NewRequest("DELETE", "/course/removeforce?code=S209", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	RemoveCourseForce(rr, r)
-	if rr.Code != http.StatusOK {
-		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
-	}
-	if rr.Body.String() != responses.Success.Error() {
-		t.Errorf("got %s, want %s", rr.Body.String(), responses.Success.Error())
-	}
-}
-
-func TestServerRemoveCourseProfessor(t *testing.T) {
-	err := dbInit()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer DataDB.Close()
-	r, err := http.NewRequest("DELETE", "/courses/removeprof?uuid=1&code=CN9A", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	RemoveCourseProfessor(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
 	}
@@ -202,7 +170,7 @@ func TestServerRemoveProfessor(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("DELETE", fmt.Sprintf("/professors/remove?uuid=%s", professors[0].UUID), nil)
+	r, err := http.NewRequest("DELETE", fmt.Sprintf("/professor/remove?uuid=%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +190,7 @@ func TestServerRemoveProfessorForce(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("DELETE", fmt.Sprintf("/professors/removeforce?uuid=%s", professors[0].UUID), nil)
+	r, err := http.NewRequest("DELETE", fmt.Sprintf("/professor/removeforce?uuid=%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +210,7 @@ func TestServerGetLastCourses(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", "/courses", nil)
+	r, err := http.NewRequest("GET", "/course/all", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +238,7 @@ func TestServerGetLastProfessors(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", "/professors", nil)
+	r, err := http.NewRequest("GET", "/professor/all", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +263,7 @@ func TestServerGetLastScores(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", "/scores", nil)
+	r, err := http.NewRequest("GET", "/score/all", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,13 +288,13 @@ func TestServerGetCoursesByProfessorUUID(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/courses/%s", professors[0].UUID), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/course/%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/courses/{uuid}", GetCoursesByProfessorUUID)
+	router.HandleFunc("/course/{uuid}", GetCoursesByProfessorUUID)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -347,13 +315,13 @@ func TestServerGetProfessorsByCourseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/professors/%s", courses[0].Code), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/professor/%s", courses[0].Code), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/professors/{code}", GetProfessorsByCourseCode)
+	router.HandleFunc("/professor/{code}", GetProfessorsByCourseCode)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -374,13 +342,13 @@ func TestServerGetScoresByProfessorUUID(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/prof/%s", professors[0].UUID), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/score/prof/%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/prof/{uuid}", GetScoresByProfessorUUID)
+	router.HandleFunc("/score/prof/{uuid}", GetScoresByProfessorUUID)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -401,13 +369,13 @@ func TestServerGetScoresByProfessorName(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/name/%s", professors[0].Name), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/score/name/%s", professors[0].Name), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/name/{name}", GetScoresByProfessorName)
+	router.HandleFunc("/score/name/{name}", GetScoresByProfessorName)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -428,13 +396,13 @@ func TestServerGetScoresByProfessorNameLike(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/namelike/%s", professors[0].Name[:5]), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/score/namelike/%s", professors[0].Name[:5]), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/namelike/{name}", GetScoresByProfessorNameLike)
+	router.HandleFunc("/score/namelike/{name}", GetScoresByProfessorNameLike)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -455,13 +423,13 @@ func TestServerGetScoresByCourseName(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/coursename/%s", courses[0].Name), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/score/coursename/%s", courses[0].Name), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/coursename/{name}", GetScoresByCourseName)
+	router.HandleFunc("/score/coursename/{name}", GetScoresByCourseName)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -482,13 +450,13 @@ func TestServerGetScoresByCourseNameLike(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/coursenamelike/%s", courses[0].Name[:5]), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/score/coursenamelike/%s", courses[0].Name[:5]), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/coursenamelike/{name}", GetScoresByCourseNameLike)
+	router.HandleFunc("/score/coursenamelike/{name}", GetScoresByCourseNameLike)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -509,13 +477,13 @@ func TestServerGetScoresByCourseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/coursecode/%s", courses[0].Code), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/score/coursecode/%s", courses[0].Code), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/coursecode/{code}", GetScoresByCourseCode)
+	router.HandleFunc("/score/coursecode/{code}", GetScoresByCourseCode)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -536,13 +504,13 @@ func TestServerGetScoresByCourseCodeLike(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
-	r, err := http.NewRequest("GET", fmt.Sprintf("/scores/coursecodelike/%s", courses[0].Code[:3]), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("/score/coursecodelike/%s", courses[0].Code[:3]), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/scores/coursecodelike/{code}", GetScoresByCourseCodeLike)
+	router.HandleFunc("/score/coursecodelike/{code}", GetScoresByCourseCodeLike)
 	router.ServeHTTP(rr, r)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %v, want %v", rr.Code, http.StatusOK)
@@ -565,7 +533,7 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 	defer DataDB.Close()
 
 	data, _ := json.Marshal(&GradeData{CourseCode: courses[0].Code, ProfUUID: professors[0].UUID, GradeTeaching: 5, GradeCoursework: 4, GradeLearning: 3})
-	r := httptest.NewRequest("POST", "/courses/grade", bytes.NewReader(data))
+	r := httptest.NewRequest("POST", "/course/grade", bytes.NewReader(data))
 	rr := httptest.NewRecorder()
 	err = initTestUserState()
 	if err != nil {
