@@ -12,9 +12,6 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-// NullFloat64 represents a special value for float64 indicating null or undefined.
-const NullFloat64 = -1
-
 // MaxRowReturn represents the maximum number of rows returned by a query
 const MaxRowReturn = 100
 
@@ -49,9 +46,9 @@ func New(path string, speed bool) (db *DB, err error) {
 
 		CREATE TABLE IF NOT EXISTS Courses(
 			code TEXT PRIMARY KEY NOT NULL
-			CHECK(code != ''),
+			CHECK(code <> ''),
 			name TEXT NOT NULL
-			CHECK(name != ''),
+			CHECK(name <> ''),
 			inserted_at TIMESTAMP
 			DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(code, name)
@@ -60,7 +57,7 @@ func New(path string, speed bool) (db *DB, err error) {
 		CREATE TABLE IF NOT EXISTS Professors(
 			uuid VARCHAR(36) PRIMARY KEY NOT NULL,
 			name TEXT NOT NULL
-			CHECK(name != ''),
+			CHECK(name <> ''),
 			inserted_at TIMESTAMP
 			DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(name)
@@ -736,11 +733,7 @@ func (db *DB) checkGraded(hash int64) (graded bool, err error) {
 func averageScore(scores ...float32) float32 {
 	var sum float32
 	for _, s := range scores {
-		if s != NullFloat64 {
-			sum += s
-		} else {
-			return NullFloat64
-		}
+		sum += s
 	}
 
 	avgScore := sum / float32(len(scores))

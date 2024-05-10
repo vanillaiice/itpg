@@ -89,6 +89,8 @@ var (
 	ErrWrongResetCode = NewResponse(4020, "wrong reset code")
 	// ErrWeakPassword indicates that the provided password is weak.
 	ErrWeakPassword = NewResponse(4021, "weak password")
+	// ErrConfirmationCodeExpired indicates that the provided confirmation code is expired.
+	ErrConfirmationCodeExpired = NewResponse(4022, "confirmation code expired")
 )
 
 // Server-side Errors

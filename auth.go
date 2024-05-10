@@ -10,6 +10,12 @@ import (
 	zxcvbn "github.com/trustelem/zxcvbn"
 )
 
+// ConfirmationCodeValidityTime is the time during which the confimatoin code is valid.
+const ConfirmationCodeValidityTime = time.Hour * 3
+
+// KeyConfirmationCodeValidityTime is the key for geting the confirmation code validity time.
+const KeyConfirmationCodeValidityTime = "cc_validity"
+
 // MinPasswordScore is the minimum acceptable score of a password computed by zxcvbn.
 const MinPasswordScore = 3
 
@@ -99,6 +105,12 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	UserState.AddUser(creds.Email, creds.Password, "")
 	UserState.AddUnconfirmed(creds.Email, confirmationCode)
 
+	if err = UserState.Users().Set(creds.Email, KeyConfirmationCodeValidityTime, time.Now().Add(ConfirmationCodeValidityTime).String()); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	responses.Success.WriteJSON(w)
 }
@@ -138,6 +150,12 @@ func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 
 	UserState.AddUnconfirmed(creds.Email, confirmationCode)
 
+	if err = UserState.Users().Set(creds.Email, KeyConfirmationCodeValidityTime, time.Now().Add(ConfirmationCodeValidityTime).String()); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	responses.Success.WriteJSON(w)
 }
@@ -156,9 +174,33 @@ func Confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	confirmationCodeValidityTime, err := UserState.Users().Get(username, KeyConfirmationCodeValidityTime)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+	t, err := time.Parse(time.RFC3339, confirmationCodeValidityTime)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+	if t.After(time.Now()) {
+		w.WriteHeader(http.StatusForbidden)
+		responses.ErrConfirmationCodeExpired.WriteJSON(w)
+		return
+	}
+
 	if err := UserState.ConfirmUserByConfirmationCode(confirmationCode); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		responses.ErrWrongConfirmationCode.WriteJSON(w)
+		return
+	}
+
+	if err := UserState.Users().DelKey(username, KeyConfirmationCodeValidityTime); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
 		return
 	}
 

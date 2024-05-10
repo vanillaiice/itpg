@@ -553,12 +553,6 @@ func TestAverageScore(t *testing.T) {
 	if avgScore != float32(expected) {
 		t.Errorf("got %f, want %f", avgScore, expected)
 	}
-	scores = []float32{5, NullFloat64, 3}
-	expected = NullFloat64
-	avgScore = averageScore(scores...)
-	if avgScore != NullFloat64 {
-		t.Errorf("got %f, want %f", avgScore, expected)
-	}
 }
 
 func TestExecStmt(t *testing.T) {
