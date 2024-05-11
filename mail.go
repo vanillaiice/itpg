@@ -2,12 +2,12 @@ package itpg
 
 import (
 	"fmt"
-	"itpg/responses"
 	"net/smtp"
 	"os"
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/vanillaiice/itpg/responses"
 )
 
 // SMTP server configuration details

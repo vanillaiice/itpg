@@ -1,10 +1,11 @@
 package sqlite
 
 import (
-	itpgDB "itpg/db"
 	"math/rand"
 	"slices"
 	"testing"
+
+	itpgDB "github.com/vanillaiice/itpg/db"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/zeebo/xxh3"

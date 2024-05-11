@@ -2,9 +2,10 @@ package itpg
 
 import (
 	"context"
-	"itpg/responses"
 	"net/http"
 	"time"
+
+	"github.com/vanillaiice/itpg/responses"
 )
 
 // UsernameContextKey is the key in the request's context to set

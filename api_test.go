@@ -5,9 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"itpg/db"
-	"itpg/db/sqlite"
-	"itpg/responses"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +12,9 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/vanillaiice/itpg/db"
+	"github.com/vanillaiice/itpg/db/sqlite"
+	"github.com/vanillaiice/itpg/responses"
 )
 
 var professorNames = []string{

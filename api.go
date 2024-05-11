@@ -2,11 +2,11 @@ package itpg
 
 import (
 	"errors"
-	"itpg/db"
-	"itpg/responses"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/vanillaiice/itpg/db"
+	"github.com/vanillaiice/itpg/responses"
 )
 
 // GradeData contains data needed to grade a course.

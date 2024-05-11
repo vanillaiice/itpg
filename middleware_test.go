@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"itpg/responses"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/vanillaiice/itpg/responses"
 	"github.com/xyproto/permissionbolt/v2"
 )
 

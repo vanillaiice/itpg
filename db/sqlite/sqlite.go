@@ -3,9 +3,10 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
-	itpgDB "itpg/db"
-	"itpg/responses"
 	"time"
+
+	itpgDB "github.com/vanillaiice/itpg/db"
+	"github.com/vanillaiice/itpg/responses"
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"

@@ -2,10 +2,6 @@ package itpg
 
 import (
 	"fmt"
-	"itpg/db"
-	"itpg/db/postgres"
-	"itpg/db/sqlite"
-	"itpg/responses"
 	"log"
 	"net/http"
 	"time"
@@ -14,6 +10,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/urfave/negroni"
+	"github.com/vanillaiice/itpg/db"
+	"github.com/vanillaiice/itpg/db/postgres"
+	"github.com/vanillaiice/itpg/db/sqlite"
+	"github.com/vanillaiice/itpg/responses"
 	"github.com/xyproto/permissionbolt/v2"
 	"github.com/xyproto/pinterface"
 )
@@ -224,12 +224,13 @@ func Run(config *RunConfig) (err error) {
 	n.Use(perm)
 	n.UseHandler(router)
 
-	s := "itpg-backend listening on port " + config.Port
+	s := fmt.Sprintf("itpg-backend (%s) listening on port %s", config.DBBackend, config.Port)
 	if !config.UseSMTP {
 		s += " with SMTPS,"
 	} else {
 		s += " with SMTP,"
 	}
+
 	if !config.UseHTTP {
 		log.Printf("%s with HTTPS\n", s)
 		return http.ListenAndServeTLS(":"+config.Port, config.CertFilePath, config.KeyFilePath, n)

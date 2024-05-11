@@ -3,12 +3,12 @@ package postgres
 import (
 	"context"
 	"fmt"
-	itpgDB "itpg/db"
-	"itpg/responses"
 
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
+	itpgDB "github.com/vanillaiice/itpg/db"
+	"github.com/vanillaiice/itpg/responses"
 	"github.com/zeebo/xxh3"
 )
 

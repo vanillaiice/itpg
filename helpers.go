@@ -3,10 +3,11 @@ package itpg
 import (
 	"encoding/json"
 	"fmt"
-	"itpg/responses"
 	"net/http"
 	"slices"
 	"strings"
+
+	"github.com/vanillaiice/itpg/responses"
 )
 
 // isEmptyStr checks if any of the provided strings are empty.

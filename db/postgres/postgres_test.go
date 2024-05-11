@@ -2,12 +2,13 @@ package postgres
 
 import (
 	"fmt"
-	itpgDB "itpg/db"
 	"log"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
+
+	itpgDB "github.com/vanillaiice/itpg/db"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/ory/dockertest/v3"

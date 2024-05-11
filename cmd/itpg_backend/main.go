@@ -1,19 +1,19 @@
 package main
 
 import (
-	"itpg"
 	"log"
 	"os"
 
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
+	"github.com/vanillaiice/itpg"
 )
 
 func main() {
 	app := &cli.App{
 		Name:    "itpg-backend",
 		Suggest: true,
-		Version: "v0.2.1",
+		Version: "v0.2.2",
 		Authors: []*cli.Author{{Name: "vanillaiice", Email: "vanillaiice1@proton.me"}},
 		Usage:   "Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.",
 		Flags: []cli.Flag{

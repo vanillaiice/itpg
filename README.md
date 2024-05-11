@@ -28,7 +28,7 @@ USAGE:
    itpg-backend [global options] command [command options]
 
 VERSION:
-   v0.2.0
+   v0.2.2
 
 AUTHOR:
    vanillaiice <vanillaiice1@proton.me>

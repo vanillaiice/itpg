@@ -2,12 +2,12 @@ package itpg
 
 import (
 	"fmt"
-	"itpg/responses"
 	"net/http"
 	"time"
 
 	"github.com/gofrs/uuid"
 	zxcvbn "github.com/trustelem/zxcvbn"
+	"github.com/vanillaiice/itpg/responses"
 )
 
 // ConfirmationCodeValidityTime is the time during which the confimatoin code is valid.
