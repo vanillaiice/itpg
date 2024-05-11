@@ -1,4 +1,4 @@
-module itpg
+module github.com/vanillaiice/itpg
 
 go 1.21.6
 
