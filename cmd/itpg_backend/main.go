@@ -9,11 +9,13 @@ import (
 	"github.com/vanillaiice/itpg"
 )
 
+const Version = "v0.3.0"
+
 func main() {
 	app := &cli.App{
 		Name:    "itpg-backend",
 		Suggest: true,
-		Version: "v0.2.2",
+		Version: Version,
 		Authors: []*cli.Author{{Name: "vanillaiice", Email: "vanillaiice1@proton.me"}},
 		Usage:   "Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.",
 		Flags: []cli.Flag{
