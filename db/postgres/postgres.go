@@ -58,7 +58,7 @@ func New(url string, speed bool) (db *DB, err error) {
 		);
 
 		CREATE TABLE IF NOT EXISTS Scores(
-			hash BIGINT NOT NULL,
+			hash TEXT NOT NULL,
 			professor_uuid VARCHAR(36) NOT NULL,
 			course_code TEXT NOT NULL,
 			score_teaching REAL
@@ -692,7 +692,7 @@ func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score
 func (db *DB) GradeCourseProfessor(professorUUID, courseCode, username string, grades [3]float32) (err error) {
 	var Hasher = xxh3.New()
 	Hasher.WriteString(username + courseCode + professorUUID)
-	hash := int64(Hasher.Sum64())
+	hash := Hasher.Sum64()
 
 	if graded, err := db.checkGraded(hash); err != nil {
 		return err
@@ -723,7 +723,7 @@ func (db *DB) GradeCourseProfessor(professorUUID, courseCode, username string, g
 
 	args := pgx.NamedArgs{
 		"professor_uuid":   professorUUID,
-		"hash":             hash,
+		"hash":             fmt.Sprintf("%d", hash),
 		"course_code":      courseCode,
 		"score_teaching":   grades[0],
 		"score_coursework": grades[1],
@@ -737,11 +737,11 @@ func (db *DB) GradeCourseProfessor(professorUUID, courseCode, username string, g
 // The hash parameter is obtained by hashing
 // the concatenation of the username, course code,
 // and professor uuid using the xxh3 algorithm.
-func (db *DB) checkGraded(hash int64) (graded bool, err error) {
+func (db *DB) checkGraded(hash uint64) (graded bool, err error) {
 	var count int
 
 	stmt := "SELECT COUNT(*) FROM Scores WHERE hash = $1"
-	if err = db.conn.QueryRow(db.ctx, stmt, hash).Scan(&count); err != nil {
+	if err = db.conn.QueryRow(db.ctx, stmt, fmt.Sprintf("%d", hash)).Scan(&count); err != nil {
 		return
 	}
 

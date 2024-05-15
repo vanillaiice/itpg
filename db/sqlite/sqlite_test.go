@@ -520,7 +520,7 @@ func TestCheckGraded(t *testing.T) {
 
 	hasher := xxh3.New()
 	hasher.WriteString("joe" + courses[0].Code + professors[0].UUID)
-	hash := int64(hasher.Sum64())
+	hash := hasher.Sum64()
 
 	graded, err := db.checkGraded(hash)
 	if err != nil {
