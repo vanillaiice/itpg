@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	zxcvbn "github.com/trustelem/zxcvbn"
+	"github.com/trustelem/zxcvbn"
 	"github.com/vanillaiice/itpg/responses"
 )
 
@@ -105,7 +105,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	UserState.AddUser(creds.Email, creds.Password, "")
 	UserState.AddUnconfirmed(creds.Email, confirmationCode)
 
-	if err = UserState.Users().Set(creds.Email, KeyConfirmationCodeValidityTime, time.Now().Add(ConfirmationCodeValidityTime).String()); err != nil {
+	if err = UserState.Users().Set(creds.Email, KeyConfirmationCodeValidityTime, time.Now().Add(ConfirmationCodeValidityTime).Format(time.RFC3339)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -150,7 +150,7 @@ func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 
 	UserState.AddUnconfirmed(creds.Email, confirmationCode)
 
-	if err = UserState.Users().Set(creds.Email, KeyConfirmationCodeValidityTime, time.Now().Add(ConfirmationCodeValidityTime).String()); err != nil {
+	if err = UserState.Users().Set(creds.Email, KeyConfirmationCodeValidityTime, time.Now().Add(ConfirmationCodeValidityTime).Format(time.RFC3339)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -186,7 +186,7 @@ func Confirm(w http.ResponseWriter, r *http.Request) {
 		responses.ErrInternal.WriteJSON(w)
 		return
 	}
-	if t.After(time.Now()) {
+	if !t.After(time.Now()) {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrConfirmationCodeExpired.WriteJSON(w)
 		return
