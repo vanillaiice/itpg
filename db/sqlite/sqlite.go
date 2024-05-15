@@ -270,12 +270,7 @@ func (db *DB) GetLastScores() (scores []*itpgDB.Score, err error) {
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
-		GROUP BY
-			Scores.professor_uuid,
-			Professors.name,
-			Scores.course_code,
-			Courses.name,
-			Scores.inserted_at
+		GROUP BY Scores.course_code
 		ORDER BY Scores.inserted_at
 		DESC
 		LIMIT ?
@@ -386,11 +381,7 @@ func (db *DB) GetScoresByProfessorUUID(UUID string) (scores []*itpgDB.Score, err
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE
 			Scores.professor_uuid = ?
-		GROUP BY
-			Professors.name,
-			Scores.course_code,
-			Courses.name,
-			Scores.inserted_at
+		GROUP BY Scores.course_code
 		ORDER BY Scores.inserted_at
 		DESC
 	`
@@ -429,11 +420,7 @@ func (db *DB) GetScoresByProfessorName(name string) (scores []*itpgDB.Score, err
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code 
 		WHERE Professors.name = ?
-		GROUP BY
-			Scores.course_code,
-			Courses.name,
-			Scores.professor_uuid,
-			Scores.inserted_at
+		GROUP BY Scores.course_code
 		ORDER BY Scores.inserted_at
 		DESC
 	`
@@ -474,12 +461,7 @@ func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*itpgDB.Sc
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Professors.name
 		LIKE ?
-		GROUP BY
-			Professors.name,
-			Scores.course_code,
-			Courses.name,
-			Scores.professor_uuid,
-			Scores.inserted_at
+		GROUP BY Scores.course_code
 		ORDER BY Scores.inserted_at
 		DESC
 		LIMIT ?
@@ -518,11 +500,7 @@ func (db *DB) GetScoresByCourseName(name string) (scores []*itpgDB.Score, err er
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Courses.name = ?
-		GROUP BY
-			Professors.name,
-			Scores.course_code,
-			Scores.professor_uuid,
-			Scores.inserted_at
+		GROUP BY Scores.course_code
 		ORDER BY Scores.inserted_at
 		DESC
 	`
@@ -563,12 +541,7 @@ func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*itpgDB.Score
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Courses.name
 		LIKE ?
-		GROUP BY
-			Professors.name,
-			Scores.course_code,
-			Courses.name,
-			Scores.professor_uuid,
-			Scores.inserted_at
+		GROUP BY Scores.course_code
 		ORDER BY Scores.inserted_at
 		DESC
 		LIMIT ?
@@ -607,11 +580,7 @@ func (db *DB) GetScoresByCourseCode(code string) (scores []*itpgDB.Score, err er
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Scores.course_code = ?
-		GROUP BY
-			Professors.name,
-			Courses.name,
-			Scores.professor_uuid,
-			Scores.inserted_at
+		GROUP BY Scores.course_code
 		ORDER BY Scores.inserted_at
 		DESC
 	`
@@ -652,12 +621,7 @@ func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Scores.course_code
 		LIKE ?
-		GROUP BY
-			Professors.name,
-			Scores.course_code,
-			Courses.name,
-			Scores.professor_uuid,
-			Scores.inserted_at
+		GROUP BY Scores.course_code
 		ORDER BY Scores.inserted_at
 		DESC
 		LIMIT ?
