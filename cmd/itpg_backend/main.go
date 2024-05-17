@@ -9,7 +9,7 @@ import (
 	"github.com/vanillaiice/itpg"
 )
 
-const Version = "v0.3.1"
+const Version = "v0.3.2"
 
 func main() {
 	app := &cli.App{

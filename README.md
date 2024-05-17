@@ -25,10 +25,10 @@ NAME:
    itpg-backend - Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.
 
 USAGE:
-   itpg-backend [global options] command [command options]
+   itpg-backend [global options] command [command options] 
 
 VERSION:
-   v0.2.2
+   v0.3.2
 
 AUTHOR:
    vanillaiice <vanillaiice1@proton.me>
