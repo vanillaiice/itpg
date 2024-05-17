@@ -2,7 +2,6 @@ package itpg
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -332,7 +331,6 @@ func GetScoresByCourseCodeLike(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		fmt.Println(err)
 		return
 	}
 
