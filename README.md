@@ -25,10 +25,10 @@ NAME:
    itpg-backend - Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.
 
 USAGE:
-   itpg-backend [global options] command [command options] 
+   itpg-backend [global options] command [command options]
 
 VERSION:
-   v0.3.2
+   v0.4.0
 
 AUTHOR:
    vanillaiice <vanillaiice1@proton.me>
@@ -40,7 +40,6 @@ GLOBAL OPTIONS:
    --port PORT, -p PORT                                                               listen on PORT (default: "443")
    --db value, -d value                                                               professors, courses and scores sqlite database (default: "itpg.db")
    --db-backend value, -n value                                                       database backend: sqlite or postgres (default: "sqlite")
-   --db-speed, -b                                                                     prioritize database transaction speed at the cost of data integrity (default: false)
    --users-db value, -u value                                                         user state management bolt database (default: "users.db")
    --cookie-timeout value, -i value                                                   cookie timeout in minutes (default: 30)
    --env-path value, -e value                                                         SMTP configuration file (default: ".env")
