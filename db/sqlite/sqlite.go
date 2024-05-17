@@ -28,15 +28,10 @@ type DB struct {
 }
 
 // NewDB initializes a new database connection and sets up the necessary tables if they don't exist.
-func New(path string, speed bool) (db *DB, err error) {
+func New(url string) (db *DB, err error) {
 	var conn *sql.DB
 
-	if speed {
-		// FIXME: using cache=shared makes tests fails for some reason
-		path = fmt.Sprintf("file:%s?journal_mode=memory&sync_mode=off&mode=rwc", path)
-	}
-
-	conn, err = sql.Open("sqlite", path)
+	conn, err = sql.Open("sqlite", url)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +79,6 @@ func New(path string, speed bool) (db *DB, err error) {
 			REFERENCES Professors(uuid),
 			FOREIGN KEY(course_code)
 			REFERENCES Courses(code)
-			--UNIQUE(hash)
 		);
 	`
 
@@ -294,14 +288,14 @@ func (db *DB) GetLastScores() (scores []*itpgDB.Score, err error) {
 			Professors.name,
 			Scores.course_code,
 			Courses.name,
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			IFNULL(AVG(Scores.score_teaching), 0),
+			IFNULL(AVG(Scores.score_coursework), 0),
+			IFNULL(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
-		GROUP BY Scores.course_code
+		GROUP BY Scores.course_code, Scores.professor_uuid
 		ORDER BY Scores.inserted_at
 		DESC
 		LIMIT ?
@@ -403,16 +397,16 @@ func (db *DB) GetScoresByProfessorUUID(UUID string) (scores []*itpgDB.Score, err
 			Professors.name,
 			Scores.course_code,
 			Courses.name,
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			IFNULL(AVG(Scores.score_teaching), 0),
+			IFNULL(AVG(Scores.score_coursework), 0),
+			IFNULL(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE
 			Scores.professor_uuid = ?
-		GROUP BY Scores.course_code
+		GROUP BY Scores.course_code, Scores.professor_uuid
 		ORDER BY Scores.inserted_at
 		DESC
 	`
@@ -443,15 +437,15 @@ func (db *DB) GetScoresByProfessorName(name string) (scores []*itpgDB.Score, err
 			Scores.course_code,
 			Courses.name,
 			Scores.professor_uuid,
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			IFNULL(AVG(Scores.score_teaching), 0),
+			IFNULL(AVG(Scores.score_coursework), 0),
+			IFNULL(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code 
 		WHERE Professors.name = ?
-		GROUP BY Scores.course_code
+		GROUP BY Scores.course_code, Scores.professor_uuid
 		ORDER BY Scores.inserted_at
 		DESC
 	`
@@ -483,16 +477,16 @@ func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*itpgDB.Sc
 			Scores.course_code,
 			Courses.name,
 			Scores.professor_uuid,
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			IFNULL(AVG(Scores.score_teaching), 0),
+			IFNULL(AVG(Scores.score_coursework), 0),
+			IFNULL(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Professors.name
 		LIKE ?
-		GROUP BY Scores.course_code
+		GROUP BY Scores.course_code, Scores.professor_uuid
 		ORDER BY Scores.inserted_at
 		DESC
 		LIMIT ?
@@ -523,15 +517,15 @@ func (db *DB) GetScoresByCourseName(name string) (scores []*itpgDB.Score, err er
 			Professors.name,
 			Scores.course_code,
 			Scores.professor_uuid,
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			IFNULL(AVG(Scores.score_teaching), 0),
+			IFNULL(AVG(Scores.score_coursework), 0),
+			IFNULL(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Courses.name = ?
-		GROUP BY Scores.course_code
+		GROUP BY Scores.course_code, Scores.professor_uuid
 		ORDER BY Scores.inserted_at
 		DESC
 	`
@@ -563,16 +557,16 @@ func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*itpgDB.Score
 			Scores.course_code,
 			Courses.name,
 			Scores.professor_uuid,
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			IFNULL(AVG(Scores.score_teaching), 0),
+			IFNULL(AVG(Scores.score_coursework), 0),
+			IFNULL(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Courses.name
 		LIKE ?
-		GROUP BY Scores.course_code
+		GROUP BY Scores.course_code, Scores.professor_uuid
 		ORDER BY Scores.inserted_at
 		DESC
 		LIMIT ?
@@ -603,15 +597,15 @@ func (db *DB) GetScoresByCourseCode(code string) (scores []*itpgDB.Score, err er
 			Professors.name,
 			Courses.name,
 			Scores.professor_uuid,
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			IFNULL(AVG(Scores.score_teaching), 0),
+			IFNULL(AVG(Scores.score_coursework), 0),
+			IFNULL(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Scores.course_code = ?
-		GROUP BY Scores.course_code
+		GROUP BY Scores.course_code, Scores.professor_uuid
 		ORDER BY Scores.inserted_at
 		DESC
 	`
@@ -643,16 +637,16 @@ func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score
 			Scores.course_code,
 			Courses.name,
 			Scores.professor_uuid,
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			IFNULL(AVG(Scores.score_teaching), 0),
+			IFNULL(AVG(Scores.score_coursework), 0),
+			IFNULL(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
 			LEFT JOIN Courses ON Scores.course_code = Courses.code
 		WHERE Scores.course_code
 		LIKE ?
-		GROUP BY Scores.course_code
+		GROUP BY Scores.course_code, Scores.professor_uuid
 		ORDER BY Scores.inserted_at
 		DESC
 		LIMIT ?

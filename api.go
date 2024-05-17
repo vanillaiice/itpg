@@ -2,6 +2,7 @@ package itpg
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -111,6 +112,23 @@ func RemoveProfessorForce(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := DataDB.RemoveProfessor(professorUUID, true); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	responses.Success.WriteJSON(w)
+}
+
+// AddCourseProfessor handles the HTTP request to associate a course with a professor.
+func AddCourseProfessor(w http.ResponseWriter, r *http.Request) {
+	professorUUID, courseCode := r.FormValue("uuid"), r.FormValue("code")
+	if err := isEmptyStr(w, professorUUID, courseCode); err != nil {
+		return
+	}
+
+	if err := DataDB.AddCourseProfessor(professorUUID, courseCode); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
 		return
@@ -314,6 +332,7 @@ func GetScoresByCourseCodeLike(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		fmt.Println(err)
 		return
 	}
 

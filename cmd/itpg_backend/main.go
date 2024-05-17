@@ -9,7 +9,7 @@ import (
 	"github.com/vanillaiice/itpg"
 )
 
-const Version = "v0.3.2"
+const Version = "v0.4.0"
 
 func main() {
 	app := &cli.App{
@@ -41,14 +41,6 @@ func main() {
 					Aliases: []string{"n"},
 					Usage:   "database backend: sqlite or postgres",
 					Value:   "sqlite",
-				},
-			),
-			altsrc.NewBoolFlag(
-				&cli.BoolFlag{
-					Name:    "db-speed",
-					Aliases: []string{"b"},
-					Usage:   "prioritize database transaction speed at the cost of data integrity",
-					Value:   false,
 				},
 			),
 			altsrc.NewPathFlag(
@@ -143,7 +135,6 @@ func main() {
 					CookieTimeout:           ctx.Int("cookie-timeout"),
 					SMTPEnvPath:             ctx.Path("env-path"),
 					PasswordResetWebsiteURL: ctx.String("pass-reset-url"),
-					Speed:                   ctx.Bool("speed"),
 					AllowedOrigins:          ctx.StringSlice("allowed-origins"),
 					AllowedMailDomains:      ctx.StringSlice("allowed-mail-domains"),
 					UseSMTP:                 ctx.Bool("smtp"),

@@ -38,7 +38,7 @@ func initDB(path ...string) (db.DB, error) {
 		path = append(path, ":memory:")
 	}
 
-	db, err := sqlite.New(path[0], true)
+	db, err := sqlite.New(path[0])
 	if err != nil {
 		return nil, err
 	}
@@ -78,9 +78,6 @@ func initDB(path ...string) (db.DB, error) {
 
 func dbInit() (err error) {
 	DataDB, err = initDB()
-	if err != nil {
-		return
-	}
 	return
 }
 
@@ -90,6 +87,7 @@ func TestServerAddCourse(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("POST", "/course/add?code=GC8F&name=Showing%20your%20son%20whose%20the%20boss", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -110,6 +108,7 @@ func TestServerAddProfessor(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("POST", "/professor/add?fullname=Gintoki%20Sakata%20Senpai", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -130,6 +129,7 @@ func TestServerRemoveCourse(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("DELETE", "/course/remove?code=S209", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -150,6 +150,7 @@ func TestServerRemoveCourseForce(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("DELETE", "/course/removeforce?code=S209", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -164,12 +165,34 @@ func TestServerRemoveCourseForce(t *testing.T) {
 	}
 }
 
+func TestServerAddCourseProfessor(t *testing.T) {
+	err := dbInit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer DataDB.Close()
+
+	r, err := http.NewRequest("POST", fmt.Sprintf("/courses/addprof?uuid=%s&code=S209", professors[1].UUID), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	AddCourseProfessor(rr, r)
+	if rr.Code != http.StatusOK {
+		t.Errorf("got %v, want %v", rr.Code, http.StatusOK)
+	}
+	if rr.Body.String() != responses.Success.Error() {
+		t.Errorf("got %s, want %s", rr.Body.String(), responses.Success.Error())
+	}
+}
+
 func TestServerRemoveProfessor(t *testing.T) {
 	err := dbInit()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("DELETE", fmt.Sprintf("/professor/remove?uuid=%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -190,6 +213,7 @@ func TestServerRemoveProfessorForce(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("DELETE", fmt.Sprintf("/professor/removeforce?uuid=%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -210,6 +234,7 @@ func TestServerGetLastCourses(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", "/course/all", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -238,6 +263,7 @@ func TestServerGetLastProfessors(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", "/professor/all", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -263,6 +289,7 @@ func TestServerGetLastScores(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", "/score/all", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -288,6 +315,7 @@ func TestServerGetCoursesByProfessorUUID(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/course/%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -315,6 +343,7 @@ func TestServerGetProfessorsByCourseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/professor/%s", courses[0].Code), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -342,6 +371,7 @@ func TestServerGetScoresByProfessorUUID(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/score/prof/%s", professors[0].UUID), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -369,6 +399,7 @@ func TestServerGetScoresByProfessorName(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/score/name/%s", professors[0].Name), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -396,6 +427,7 @@ func TestServerGetScoresByProfessorNameLike(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/score/namelike/%s", professors[0].Name[:5]), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -423,6 +455,7 @@ func TestServerGetScoresByCourseName(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/score/coursename/%s", courses[0].Name), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -450,6 +483,7 @@ func TestServerGetScoresByCourseNameLike(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/score/coursenamelike/%s", courses[0].Name[:5]), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -477,6 +511,7 @@ func TestServerGetScoresByCourseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/score/coursecode/%s", courses[0].Code), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -504,6 +539,7 @@ func TestServerGetScoresByCourseCodeLike(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer DataDB.Close()
+
 	r, err := http.NewRequest("GET", fmt.Sprintf("/score/coursecodelike/%s", courses[0].Code[:3]), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -540,6 +576,7 @@ func TestServerGradeCourseProfessor(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer removeUserState()
+
 	UserState.AddUser(creds.Email, creds.Password, "")
 	UserState.Confirm(creds.Email)
 	if err := UserState.Login(rr, creds.Email); err != nil {

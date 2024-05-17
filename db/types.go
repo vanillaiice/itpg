@@ -10,6 +10,8 @@ type DB interface {
 	AddCourseMany([]*Course) error
 	AddProfessor(string) error
 	AddProfessorMany(names []string) error
+	AddCourseProfessor(professorUUID, courseCode string) error
+	AddCourseProfessorMany(professorUUIDS, courseCodes []string) error
 	RemoveCourse(string, bool) error
 	RemoveProfessor(string, bool) error
 	GetLastCourses() ([]*Course, error)

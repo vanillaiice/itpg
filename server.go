@@ -109,7 +109,6 @@ type RunConfig struct {
 	Port                    string          // Port on which the server will run
 	DBPath                  string          // Path to the SQLite database file
 	DBBackend               DatabaseBackend // Database backend type
-	Speed                   bool            // Whether to use prioritize database transaction speed at the cost of data integrity
 	UsersDBPath             string          // Path to the users BOLT database file
 	SMTPEnvPath             string          // Path to the .env file containing SMTP configuration
 	PasswordResetWebsiteURL string          // URL to the password reset website page
@@ -135,9 +134,9 @@ func Run(config *RunConfig) (err error) {
 
 	switch config.DBBackend {
 	case Sqlite:
-		DataDB, err = sqlite.New(config.DBPath, config.Speed)
+		DataDB, err = sqlite.New(config.DBPath)
 	case Postgres:
-		DataDB, err = postgres.New(config.DBPath, config.Speed)
+		DataDB, err = postgres.New(config.DBPath)
 	default:
 		return fmt.Errorf("invalid database backend: %s", string(config.DBBackend))
 	}
@@ -202,6 +201,7 @@ func Run(config *RunConfig) (err error) {
 		{"course/add", AddCourse, http.MethodPost, AdminPath, LimiterLenient},
 		{"course/remove", RemoveCourse, http.MethodDelete, AdminPath, LimiterLenient},
 		{"course/removeforce", RemoveCourseForce, http.MethodDelete, AdminPath, LimiterLenient},
+		{"course/addprof", AddCourseProfessor, http.MethodPost, AdminPath, LimiterLenient},
 		{"professor/add", AddProfessor, http.MethodDelete, AdminPath, LimiterLenient},
 		{"professor/remove", RemoveProfessor, http.MethodDelete, AdminPath, LimiterLenient},
 		{"professor/removeforce", RemoveProfessorForce, http.MethodDelete, AdminPath, LimiterLenient},

@@ -28,7 +28,7 @@ type DB struct {
 }
 
 // NewDB initializes a new database connection and sets up the necessary tables if they don't exist.
-func New(url string, speed bool) (db *DB, err error) {
+func New(url string) (db *DB, err error) {
 	ctx := context.Background()
 
 	conn, err := pgx.Connect(ctx, url)
@@ -77,7 +77,6 @@ func New(url string, speed bool) (db *DB, err error) {
 			REFERENCES Professors(uuid),
 			FOREIGN KEY(course_code)
 			REFERENCES Courses(code)
-			--UNIQUE(hash)
 		);
 	`
 
@@ -284,9 +283,9 @@ func (db *DB) GetLastScores() (scores []*itpgDB.Score, err error) {
 			STRING_AGG(DISTINCT Professors.name, ', '),
 			Scores.course_code,
 			STRING_AGG(DISTINCT Courses.name, ', '),
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			COALESCE(AVG(Scores.score_teaching), 0),
+			COALESCE(AVG(Scores.score_coursework), 0),
+			COALESCE(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
@@ -393,9 +392,9 @@ func (db *DB) GetScoresByProfessorUUID(UUID string) (scores []*itpgDB.Score, err
 			STRING_AGG(DISTINCT Professors.name, ', '),
 			Scores.course_code,
 			STRING_AGG(DISTINCT Courses.name, ', '),
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			COALESCE(AVG(Scores.score_teaching), 0),
+			COALESCE(AVG(Scores.score_coursework), 0),
+			COALESCE(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
@@ -433,9 +432,9 @@ func (db *DB) GetScoresByProfessorName(name string) (scores []*itpgDB.Score, err
 			Scores.course_code,
 			STRING_AGG(DISTINCT Courses.name, ', '),
 			STRING_AGG(DISTINCT Scores.professor_uuid, ', '),
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			COALESCE(AVG(Scores.score_teaching), 0),
+			COALESCE(AVG(Scores.score_coursework), 0),
+			COALESCE(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
@@ -473,9 +472,9 @@ func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*itpgDB.Sc
 			Scores.course_code,
 			STRING_AGG(DISTINCT Courses.name, ', '),
 			STRING_AGG(DISTINCT Scores.professor_uuid, ', '),
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			COALESCE(AVG(Scores.score_teaching), 0),
+			COALESCE(AVG(Scores.score_coursework), 0),
+			COALESCE(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
@@ -518,9 +517,9 @@ func (db *DB) GetScoresByCourseName(name string) (scores []*itpgDB.Score, err er
 			STRING_AGG(DISTINCT Professors.name, ', '),
 			Scores.course_code,
 			STRING_AGG(DISTINCT Scores.professor_uuid, ', '),
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			COALESCE(AVG(Scores.score_teaching), 0),
+			COALESCE(AVG(Scores.score_coursework), 0),
+			COALESCE(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
@@ -558,9 +557,9 @@ func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*itpgDB.Score
 			Scores.course_code,
 			STRING_AGG(DISTINCT Courses.name, ', '),
 			STRING_AGG(DISTINCT Scores.professor_uuid, ', '),
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			COALESCE(AVG(Scores.score_teaching), 0),
+			COALESCE(AVG(Scores.score_coursework), 0),
+			COALESCE(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
@@ -603,9 +602,9 @@ func (db *DB) GetScoresByCourseCode(code string) (scores []*itpgDB.Score, err er
 			STRING_AGG(DISTINCT Professors.name, ', '),
 			STRING_AGG(DISTINCT Courses.name, ', '),
 			STRING_AGG(DISTINCT Scores.professor_uuid, ', '),
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			COALESCE(AVG(Scores.score_teaching), 0),
+			COALESCE(AVG(Scores.score_coursework), 0),
+			COALESCE(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
@@ -643,9 +642,9 @@ func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score
 			Scores.course_code,
 			STRING_AGG(DISTINCT Courses.name, ', '),
 			STRING_AGG(DISTINCT Scores.professor_uuid, ', '),
-			AVG(Scores.score_teaching),
-			AVG(Scores.score_coursework),
-			AVG(Scores.score_learning)
+			COALESCE(AVG(Scores.score_teaching), 0),
+			COALESCE(AVG(Scores.score_coursework), 0),
+			COALESCE(AVG(Scores.score_learning), 0)
 		FROM
 			Scores
 			LEFT JOIN Professors ON Scores.professor_uuid = Professors.uuid
