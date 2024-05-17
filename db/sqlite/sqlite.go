@@ -19,6 +19,9 @@ const MaxRowReturn = 100
 // RoundPrecision is the number decimals to use when rounding
 const RoundPrecision = 2
 
+// DefaultHash is the hash value used when adding course to a professor
+const DefaultHash = ""
+
 // DB is a struct contaning a SQL database connection
 type DB struct {
 	conn *sql.DB
@@ -65,6 +68,7 @@ func New(path string, speed bool) (db *DB, err error) {
 		);
 
 		CREATE TABLE IF NOT EXISTS Scores(
+			id INTEGER PRIMARY KEY,
 			hash TEXT NOT NULL,
 			professor_uuid VARCHAR(36) NOT NULL,
 			course_code TEXT NOT NULL,
@@ -79,8 +83,8 @@ func New(path string, speed bool) (db *DB, err error) {
 			FOREIGN KEY(professor_uuid)
 			REFERENCES Professors(uuid),
 			FOREIGN KEY(course_code)
-			REFERENCES Courses(code),
-			UNIQUE(hash)
+			REFERENCES Courses(code)
+			--UNIQUE(hash)
 		);
 	`
 
@@ -146,6 +150,33 @@ func (db *DB) AddProfessorMany(names []string) (err error) {
 		}
 
 		if _, err = stmt.Exec(professorUUID, n, time.Now().UnixNano()); err != nil {
+			return err
+		}
+	}
+
+	return
+}
+
+// AddCourseProfessor adds a course to a professor in the database.
+func (db *DB) AddCourseProfessor(professorUUID, courseCode string) (err error) {
+	stmt := "INSERT INTO Scores(hash, professor_uuid, course_code) VALUES(?, ?, ?)"
+	return execStmt(db.conn, stmt, DefaultHash, professorUUID, courseCode)
+}
+
+// AddCourseProfessorMany adds courses to professors in the database.
+func (db *DB) AddCourseProfessorMany(professorUUIDS, courseCodes []string) (err error) {
+	if len(professorUUIDS) != len(courseCodes) {
+		return fmt.Errorf("unequal slice length")
+	}
+
+	stmt, err := db.conn.Prepare("INSERT INTO Scores(hash, professor_uuid, course_code) VALUES(?, ?, ?)")
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+
+	for i := 0; i < len(professorUUIDS); i++ {
+		if _, err = stmt.Exec(DefaultHash, professorUUIDS[i], courseCodes[i]); err != nil {
 			return err
 		}
 	}

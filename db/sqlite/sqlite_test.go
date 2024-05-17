@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/gofrs/uuid"
 	itpgDB "github.com/vanillaiice/itpg/db"
 
 	"github.com/google/go-cmp/cmp"
@@ -161,6 +162,61 @@ func TestAddProfessorMany(t *testing.T) {
 	err = db.AddProfessorMany(ps)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAddCourseProfessor(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	err = db.AddCourseProfessor(professors[1].UUID, "S209")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = db.AddCourseProfessor(professors[1].UUID, "AP1")
+	if err == nil {
+		t.Error("expected failure")
+	}
+
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = db.AddCourseProfessor(UUID.String(), "GC8F")
+	if err == nil {
+		t.Error("expected failure")
+	}
+}
+
+func TestAddCourseProfessorMany(t *testing.T) {
+	db, err := initDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	uuids, codes := []string{}, []string{}
+	for i := len(professors) - 1; i >= 0; i-- {
+		uuids = append(uuids, professors[i].UUID)
+	}
+	for _, c := range courses {
+		codes = append(codes, c.Code)
+	}
+
+	err = db.AddCourseProfessorMany(uuids, codes)
+	if err != nil {
+		t.Error(err)
+	}
+
+	uuids = []string{}
+	err = db.AddCourseProfessorMany(uuids, codes)
+	if err == nil {
+		t.Error("expected failure")
 	}
 }
 
