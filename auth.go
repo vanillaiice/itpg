@@ -51,6 +51,7 @@ var AllowedMailDomains []string
 func Register(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -58,11 +59,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrInvalidEmail.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 	if err = checkDomainAllowed(domain); err != nil {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrEmailDomainNotAllowed.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -92,6 +95,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrGenCode.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 	confirmationCode := uuid.String()[:CodeLength]
@@ -99,6 +103,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	if err = SendMailFunc(creds.Email, makeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -108,6 +113,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	if err = UserState.Users().Set(creds.Email, KeyConfirmationCodeValidityTime, time.Now().Add(ConfirmationCodeValidityTime).Format(time.RFC3339)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -120,6 +126,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -138,6 +145,7 @@ func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrGenCode.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 	confirmationCode := uuid.String()[:CodeLength]
@@ -145,6 +153,7 @@ func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	if err = SendMailFunc(creds.Email, makeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -153,6 +162,7 @@ func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	if err = UserState.Users().Set(creds.Email, KeyConfirmationCodeValidityTime, time.Now().Add(ConfirmationCodeValidityTime).Format(time.RFC3339)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -164,6 +174,7 @@ func SendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 func Confirm(w http.ResponseWriter, r *http.Request) {
 	confirmationCode := r.FormValue("code")
 	if err := isEmptyStr(w, confirmationCode); err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -171,6 +182,7 @@ func Confirm(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		responses.ErrNotRegistered.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -178,12 +190,14 @@ func Confirm(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 	t, err := time.Parse(time.RFC3339, confirmationCodeValidityTime)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 	if !t.After(time.Now()) {
@@ -195,12 +209,14 @@ func Confirm(w http.ResponseWriter, r *http.Request) {
 	if err := UserState.ConfirmUserByConfirmationCode(confirmationCode); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		responses.ErrWrongConfirmationCode.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
 	if err := UserState.Users().DelKey(username, KeyConfirmationCodeValidityTime); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -215,6 +231,7 @@ func Confirm(w http.ResponseWriter, r *http.Request) {
 func Login(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -237,12 +254,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	if err = UserState.Users().Set(creds.Email, CookieExpiryUserStateKey, time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
 	if err = UserState.Login(w, creds.Email); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -290,12 +309,14 @@ func RefreshCookie(w http.ResponseWriter, r *http.Request) {
 	if err := UserState.Users().Set(username, CookieExpiryUserStateKey, time.Now().Add(CookieTimeout).Format(time.UnixDate)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
 	if err := UserState.Login(w, username); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -320,9 +341,11 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	credsChange, err := decodeCredentialsChange(w, r)
 	if err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 	if err = isEmptyStr(w, credsChange.OldPassword, credsChange.NewPassword); err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -342,6 +365,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 func ResetPassword(w http.ResponseWriter, r *http.Request) {
 	credsReset, err := decodeCredentialsReset(w, r)
 	if err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -349,6 +373,7 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 	if expectedResetCode, err = UserState.Users().Get(credsReset.Email, "reset-code"); err != nil {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrResetCodeNotSent.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -361,6 +386,7 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 	if err = UserState.Users().DelKey(credsReset.Email, "reset-code"); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -374,6 +400,7 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 func SendResetLink(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("email")
 	if err := isEmptyStr(w, username); err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -386,6 +413,7 @@ func SendResetLink(w http.ResponseWriter, r *http.Request) {
 	if _, err := UserState.Users().Get(username, "reset-code"); err == nil {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrResetCodeSent.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -393,6 +421,7 @@ func SendResetLink(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrGenCode.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 	resetCode := uuid.String()
@@ -400,12 +429,14 @@ func SendResetLink(w http.ResponseWriter, r *http.Request) {
 	if err = SendMailFunc(username, makeResetCodeMessage(username, fmt.Sprintf("%s?code=%s", PasswordResetWebsiteURL, resetCode))); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
 	if err = UserState.Users().Set(username, "reset-code", resetCode); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 
@@ -417,6 +448,7 @@ func SendResetLink(w http.ResponseWriter, r *http.Request) {
 func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
+		Logger.Error().Msg(err.Error())
 		return
 	}
 	if !UserState.CorrectPassword(creds.Email, creds.Password) {
@@ -433,6 +465,7 @@ func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	if err := UserState.Users().DelKey(creds.Email, CookieExpiryUserStateKey); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
+		Logger.Error().Msg(err.Error())
 		return
 	}
 

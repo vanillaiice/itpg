@@ -2,13 +2,14 @@ package itpg
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/httprate"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/negroni"
 	"github.com/vanillaiice/itpg/db"
 	"github.com/vanillaiice/itpg/db/postgres"
@@ -35,6 +36,17 @@ type DatabaseBackend string
 const (
 	Sqlite   DatabaseBackend = "sqlite"
 	Postgres DatabaseBackend = "postgres"
+)
+
+// LogLevel is the log level to use.
+type LogLevel string
+
+// Enum for log levels.
+const (
+	LogLevelDisabled LogLevel = "disabled"
+	LogLevelInfo     LogLevel = "info"
+	LogLevelError    LogLevel = "error"
+	LogLevelFatal    LogLevel = "fatal"
 )
 
 // LimitHandlerFunc is executed when the request limit is reached.
@@ -80,8 +92,8 @@ type HandlerInfo struct {
 	Path     string                                   // Path specifies the URL pattern for which the handler is responsible.
 	Handler  func(http.ResponseWriter, *http.Request) // Handler is the function that will be called to handle HTTP requests.
 	Method   string                                   // Method specifies the HTTP method associated with the handler.
-	PathType PathType                                 // PathType is the type of the path (admin, user, public)
-	Limiter  func(http.Handler) http.Handler          // Limiter is the limiter used to limit requests
+	PathType PathType                                 // PathType is the type of the path (admin, user, public).
+	Limiter  func(http.Handler) http.Handler          // Limiter is the limiter used to limit requests.
 }
 
 // DataDB represents a database connection,
@@ -104,21 +116,25 @@ var PasswordResetWebsiteURL string
 // CookieTimeout represents the duration after which a session cookie expires.
 var CookieTimeout time.Duration
 
+// Logger is the logger used by the server.
+var Logger = log.Logger
+
 // RunConfig defines the server's configuration settings.
 type RunConfig struct {
-	Port                    string          // Port on which the server will run
-	DBPath                  string          // Path to the SQLite database file
-	DBBackend               DatabaseBackend // Database backend type
-	UsersDBPath             string          // Path to the users BOLT database file
-	SMTPEnvPath             string          // Path to the .env file containing SMTP configuration
-	PasswordResetWebsiteURL string          // URL to the password reset website page
-	AllowedOrigins          []string        // List of allowed origins for CORS
-	AllowedMailDomains      []string        // List of allowed mail domains for registering with the service
-	UseSMTP                 bool            // Whether to use SMTP (false for SMTPS)
-	UseHTTP                 bool            // Whether to use HTTP (false for HTTPS)
-	CertFilePath            string          // Path to the certificate file (required for HTTPS)
-	KeyFilePath             string          // Path to the key file (required for HTTPS)
-	CookieTimeout           int             // Duration in minute after which a session cookie expires
+	Port                    string          // Port on which the server will run.
+	DbURL                   string          // Path to the SQLite database file.
+	DbBackend               DatabaseBackend // Database backend type.
+	LogLevel                LogLevel        // Log level.
+	UsersDBPath             string          // Path to the users BOLT database file.
+	SMTPEnvPath             string          // Path to the .env file containing SMTP configuration.
+	PasswordResetWebsiteURL string          // URL to the password reset website page.
+	AllowedOrigins          []string        // List of allowed origins for CORS.
+	AllowedMailDomains      []string        // List of allowed mail domains for registering with the service.
+	UseSMTP                 bool            // Whether to use SMTP (false for SMTPS).
+	UseHTTP                 bool            // Whether to use HTTP (false for HTTPS).
+	CertFilePath            string          // Path to the certificate file (required for HTTPS).
+	KeyFilePath             string          // Path to the key file (required for HTTPS).
+	CookieTimeout           int             // Duration in minute after which a session cookie expires.
 }
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
@@ -132,13 +148,26 @@ func Run(config *RunConfig) (err error) {
 		return err
 	}
 
-	switch config.DBBackend {
-	case Sqlite:
-		DataDB, err = sqlite.New(config.DBPath)
-	case Postgres:
-		DataDB, err = postgres.New(config.DBPath)
+	switch config.LogLevel {
+	case LogLevelDisabled:
+		zerolog.SetGlobalLevel(zerolog.Disabled)
+	case LogLevelInfo:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	case LogLevelError:
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case LogLevelFatal:
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
 	default:
-		return fmt.Errorf("invalid database backend: %s", string(config.DBBackend))
+		return fmt.Errorf("invalid log level: %s", string(config.LogLevel))
+	}
+
+	switch config.DbBackend {
+	case Sqlite:
+		DataDB, err = sqlite.New(config.DbURL)
+	case Postgres:
+		DataDB, err = postgres.New(config.DbURL)
+	default:
+		return fmt.Errorf("invalid database backend: %s", string(config.DbBackend))
 	}
 
 	if err != nil {
@@ -168,7 +197,6 @@ func Run(config *RunConfig) (err error) {
 		AllowCredentials: true,
 	})
 
-	// parse from json or toml file: handlers.toml
 	handlers := []*HandlerInfo{
 		// User
 		{"/course/grade", GradeCourseProfessor, http.MethodPost, UserPath, LimiterModerate},
@@ -224,7 +252,7 @@ func Run(config *RunConfig) (err error) {
 	n.Use(perm)
 	n.UseHandler(router)
 
-	s := fmt.Sprintf("itpg-backend (%s) listening on port %s", config.DBBackend, config.Port)
+	s := fmt.Sprintf("itpg-backend (%s) listening on port %s", config.DbBackend, config.Port)
 	if !config.UseSMTP {
 		s += " with SMTPS,"
 	} else {
@@ -232,10 +260,10 @@ func Run(config *RunConfig) (err error) {
 	}
 
 	if !config.UseHTTP {
-		log.Printf("%s with HTTPS\n", s)
+		log.Info().Msgf("%s with HTTPS\n", s)
 		return http.ListenAndServeTLS(":"+config.Port, config.CertFilePath, config.KeyFilePath, n)
 	} else {
-		log.Printf("%s with HTTP\n", s)
+		log.Info().Msgf("%s with HTTP\n", s)
 		return http.ListenAndServe(":"+config.Port, n)
 	}
 }

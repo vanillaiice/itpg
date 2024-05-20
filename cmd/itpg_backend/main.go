@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/urfave/cli/v2"
@@ -9,7 +8,7 @@ import (
 	"github.com/vanillaiice/itpg"
 )
 
-const Version = "v0.4.1"
+const Version = "v0.4.2"
 
 func main() {
 	app := &cli.App{
@@ -29,18 +28,18 @@ func main() {
 			),
 			altsrc.NewStringFlag(
 				&cli.StringFlag{
-					Name:    "db",
-					Aliases: []string{"d"},
-					Usage:   "professors, courses and scores sqlite database",
-					Value:   "itpg.db",
+					Name:    "db-backend",
+					Aliases: []string{"b"},
+					Usage:   "database backend, either sqlite or postgres",
+					Value:   "sqlite",
 				},
 			),
 			altsrc.NewStringFlag(
 				&cli.StringFlag{
-					Name:    "db-backend",
-					Aliases: []string{"n"},
-					Usage:   "database backend: sqlite or postgres",
-					Value:   "sqlite",
+					Name:    "db",
+					Aliases: []string{"d"},
+					Usage:   "database connection `URL`",
+					Value:   "itpg.db",
 				},
 			),
 			altsrc.NewPathFlag(
@@ -49,6 +48,14 @@ func main() {
 					Aliases: []string{"u"},
 					Usage:   "user state management bolt database",
 					Value:   "users.db",
+				},
+			),
+			altsrc.NewStringFlag(
+				&cli.StringFlag{
+					Name:    "log-level",
+					Aliases: []string{"g"},
+					Usage:   "log level",
+					Value:   "info",
 				},
 			),
 			altsrc.NewIntFlag(
@@ -62,9 +69,9 @@ func main() {
 
 			altsrc.NewPathFlag(
 				&cli.PathFlag{
-					Name:    "env-path",
+					Name:    "env",
 					Aliases: []string{"e"},
-					Usage:   "SMTP configuration file",
+					Usage:   "load SMTP configuration from `FILE`",
 					Value:   ".env",
 				},
 			),
@@ -72,7 +79,7 @@ func main() {
 				&cli.StringFlag{
 					Name:    "pass-reset-url",
 					Aliases: []string{"r"},
-					Usage:   "URL of the password reset web page",
+					Usage:   "password reset web page `URL`",
 				},
 			),
 			altsrc.NewStringSliceFlag(
@@ -109,31 +116,32 @@ func main() {
 				&cli.PathFlag{
 					Name:    "cert-file",
 					Aliases: []string{"c"},
-					Usage:   "SSL certificate file",
+					Usage:   "load SSL certificate file from `FILE`",
 				},
 			),
 			altsrc.NewPathFlag(
 				&cli.PathFlag{
 					Name:    "key-file",
 					Aliases: []string{"k"},
-					Usage:   "SSL secret key file",
+					Usage:   "laod SSL secret key from `FILE`",
 				},
 			),
 			&cli.StringFlag{
 				Name:    "load",
 				Aliases: []string{"l"},
-				Usage:   "load TOML config from file",
+				Usage:   "load TOML config from `FILE`",
 			},
 		},
 		Action: func(ctx *cli.Context) error {
 			return itpg.Run(
 				&itpg.RunConfig{
 					Port:                    ctx.String("port"),
-					DBPath:                  ctx.String("db"),
-					DBBackend:               itpg.DatabaseBackend(ctx.String("db-backend")),
+					DbURL:                   ctx.String("db"),
+					DbBackend:               itpg.DatabaseBackend(ctx.String("db-backend")),
 					UsersDBPath:             ctx.Path("users-db"),
+					LogLevel:                itpg.LogLevel(ctx.String("log-level")),
 					CookieTimeout:           ctx.Int("cookie-timeout"),
-					SMTPEnvPath:             ctx.Path("env-path"),
+					SMTPEnvPath:             ctx.Path("env"),
 					PasswordResetWebsiteURL: ctx.String("pass-reset-url"),
 					AllowedOrigins:          ctx.StringSlice("allowed-origins"),
 					AllowedMailDomains:      ctx.StringSlice("allowed-mail-domains"),
@@ -149,6 +157,6 @@ func main() {
 	app.Before = altsrc.InitInputSourceWithContext(app.Flags, altsrc.NewTomlSourceFromFlagFunc("load"))
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		itpg.Logger.Fatal().Msg(err.Error())
 	}
 }
