@@ -8,16 +8,16 @@ RUN go mod download && go mod verify
 
 COPY . .
 
-RUN go build -ldflags="-s -w" -o /itpgb ./cmd/itpg-backend/main.go
+RUN go build -ldflags="-s -w" -o /itpg ./cmd/itpg-backend/main.go
 
 FROM scratch
 
 WORKDIR /
 
-COPY --from=build /itpgb /itpgb
+COPY --from=build /itpg /itpg
 
 EXPOSE 5555
 
-ENTRYPOINT ["/itpgb"]
+ENTRYPOINT ["/itpg"]
 
 CMD ["--help"]
