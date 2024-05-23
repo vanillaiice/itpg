@@ -28,7 +28,7 @@ USAGE:
    itpg-backend [global options] command [command options]
 
 VERSION:
-   v0.4.1
+   v0.4.3
 
 AUTHOR:
    vanillaiice <vanillaiice1@proton.me>
@@ -38,19 +38,20 @@ COMMANDS:
 
 GLOBAL OPTIONS:
    --port PORT, -p PORT                                                               listen on PORT (default: "443")
-   --db value, -d value                                                               professors, courses and scores sqlite database (default: "itpg.db")
-   --db-backend value, -n value                                                       database backend: sqlite or postgres (default: "sqlite")
+   --db-backend value, -b value                                                       database backend, either sqlite or postgres (default: "sqlite")
+   --db URL, -d URL                                                                   database connection URL (default: "itpg.db")
    --users-db value, -u value                                                         user state management bolt database (default: "users.db")
+   --log-level value, -g value                                                        log level (default: "info")
    --cookie-timeout value, -i value                                                   cookie timeout in minutes (default: 30)
-   --env-path value, -e value                                                         SMTP configuration file (default: ".env")
-   --pass-reset-url value, -r value                                                   URL of the password reset web page
-   --allowed-origins value, -o value [ --allowed-origins value, -o value ]            only allow specified origins to access resources
-   --allowed-mail-domains value, -m value [ --allowed-mail-domains value, -m value ]  only allow specified mail domains to register
+   --env FILE, -e FILE                                                                load SMTP configuration from FILE (default: ".env")
+   --pass-reset-url URL, -r URL                                                       password reset web page URL
+   --allowed-origins value, -o value [ --allowed-origins value, -o value ]            only allow specified origins to access resources (default: "*")
+   --allowed-mail-domains value, -m value [ --allowed-mail-domains value, -m value ]  only allow specified mail domains to register (default: "*")
    --smtp, -s                                                                         use SMTP instead of SMTPS (default: false)
    --http, -t                                                                         use HTTP instead of HTTPS (default: false)
-   --cert-file value, -c value                                                        SSL certificate file
-   --key-file value, -k value                                                         SSL secret key file
-   --load value, -l value                                                             load TOML config from file
+   --cert-file FILE, -c FILE                                                          load SSL certificate file from FILE
+   --key-file FILE, -k FILE                                                           laod SSL secret key from FILE
+   --load FILE, -l FILE                                                               load TOML config from FILE
    --help, -h                                                                         show help
    --version, -v                                                                      print the version
 ```

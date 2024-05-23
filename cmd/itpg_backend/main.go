@@ -8,7 +8,7 @@ import (
 	"github.com/vanillaiice/itpg"
 )
 
-const Version = "v0.4.2"
+const Version = "v0.4.3"
 
 func main() {
 	app := &cli.App{
@@ -87,6 +87,7 @@ func main() {
 					Name:    "allowed-origins",
 					Aliases: []string{"o"},
 					Usage:   "only allow specified origins to access resources",
+					Value:   cli.NewStringSlice("*"),
 				},
 			),
 			altsrc.NewStringSliceFlag(
@@ -94,6 +95,7 @@ func main() {
 					Name:    "allowed-mail-domains",
 					Aliases: []string{"m"},
 					Usage:   "only allow specified mail domains to register",
+					Value:   cli.NewStringSlice("*"),
 				},
 			),
 			altsrc.NewBoolFlag(
