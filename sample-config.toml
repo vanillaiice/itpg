@@ -1,15 +1,16 @@
 # ITPG backend config
 
+port = "6666"
+db-backend = "sqlite"
 db = "itpg.db"
 users-db = "users.db"
-db-speed = true
-port = "6666"
-http = false
-smtp = false
+log-level = "info"
 cookie-timeout = 60
-pass-reset-url = "https://itpg.cc/resetpass" 
-env-path = ".env"
+env = ".env"
+pass-reset-url = "https://demo.itpg.cc/resetpass" 
 allowed-origins = ["https://itpg.cc"]
-allowed-mail-domains = ["gmail.com", "yahoo.com", "tutanota.com", "outlook.com"]
+allowed-mail-domains = ["gmail.com", "yahoo.com", "tutanota.com", "outlook.com", "proton.me"]
+smtp = false
+http = false
 cert-file = "server.crt"
 key-file = "server.key"
