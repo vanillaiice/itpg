@@ -1,5 +1,7 @@
 # Is This Professor Good ? - Backend (itpg-backend)
 
+[![Go Reference](https://pkg.go.dev/badge/golang.org/x/example.svg)](https://pkg.go.dev/github.com/vanillaiice/itpg)
+
 Backend for itpg, which is a platform where students can grade their professors after taking courses.
 This permits future students to make more informed decisions when choosing their courses.
 This repository handles http requests, database transactions, and user state management.
