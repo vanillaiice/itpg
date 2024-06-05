@@ -82,6 +82,9 @@ type RunConfig struct {
 	CertFilePath            string          // Path to the certificate file (required for HTTPS).
 	KeyFilePath             string          // Path to the key file (required for HTTPS).
 	CookieTimeout           int             // Duration in minute after which a session cookie expires.
+	CodeValidityMinute      int             // Duration in minute after which a code is invalid.
+	CodeLength              int             // Length of generated codes.
+	MinPasswordScore        int             // Minimum acceptable score of a password scores computed by zxcvbn.
 	HandlerCfg              string          // Handler config json file.
 }
 
@@ -126,19 +129,20 @@ func Run(cfg *RunConfig) (err error) {
 		responses.ErrPermissionDenied.WriteJSON(w)
 	})
 
-	cookieTimeout = time.Minute * time.Duration(cfg.CookieTimeout)
+	if cfg.CodeLength > 32 || cfg.CodeLength < 8 {
+		return fmt.Errorf("invalid code length: %d (should be between 8 and 32)", cfg.CodeLength)
+	}
+	codeLength = cfg.CodeLength
 
-	userState = perm.UserState()
+	if minPasswordScore < 0 || minPasswordScore > 4 {
+		return fmt.Errorf("invalid min password score: %d (should be between 0 and 4)", minPasswordScore)
+	}
+	minPasswordScore = cfg.MinPasswordScore
 
-	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
-
-	passwordResetWebsiteURL = cfg.PasswordResetWebsiteURL
-
-	c := cors.New(cors.Options{
-		AllowedOrigins:   cfg.AllowedOrigins,
-		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodDelete},
-		AllowCredentials: true,
-	})
+	if cfg.CodeValidityMinute <= 0 {
+		return fmt.Errorf("invalid code validity: %d (should be greater than 0)", cfg.CodeValidityMinute)
+	}
+	confirmationCodeValidityTime = time.Minute * time.Duration(cfg.CodeValidityMinute)
 
 	handlerCfg, err := os.ReadFile(cfg.HandlerCfg)
 	if err != nil {
@@ -149,6 +153,12 @@ func Run(cfg *RunConfig) (err error) {
 	if err != nil {
 		return err
 	}
+
+	userState = perm.UserState()
+
+	cookieTimeout = time.Minute * time.Duration(cfg.CookieTimeout)
+
+	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
 
 	router := mux.NewRouter()
 	for _, h := range handlers {
@@ -166,6 +176,14 @@ func Run(cfg *RunConfig) (err error) {
 			return fmt.Errorf("invalid path type: %d", h.PathType)
 		}
 	}
+
+	passwordResetWebsiteURL = cfg.PasswordResetWebsiteURL
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   cfg.AllowedOrigins,
+		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodDelete},
+		AllowCredentials: true,
+	})
 
 	n := negroni.Classic()
 

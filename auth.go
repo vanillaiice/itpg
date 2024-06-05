@@ -10,18 +10,18 @@ import (
 	"github.com/vanillaiice/itpg/responses"
 )
 
-// confirmationCodeValidityTime is the time during which the confimatoin code is valid.
-const confirmationCodeValidityTime = time.Hour * 3
-
 // keyConfirmationCodeValidityTime is the key for geting the confirmation code validity time.
 const keyConfirmationCodeValidityTime = "cc_validity"
 
-// minPasswordScore is the minimum acceptable score of a password computed by zxcvbn.
-const minPasswordScore = 3
+// confirmationCodeValidityTime is the time during which the confimatoin code is valid.
+var confirmationCodeValidityTime time.Duration
 
-// codeLength is the length of generated confirmation or reset code.
-// The code is truncated from the beginning v4 uuid.
-const codeLength = 8
+// minPasswordScore is the minimum acceptable score of a password computed by zxcvbn.
+var minPasswordScore int
+
+// codeLength is the length of generated codes.
+// The code is truncated from the beginning of a v4 uuid.
+var codeLength int
 
 // Credentials represents the user credentials.
 type Credentials struct {

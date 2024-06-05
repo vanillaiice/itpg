@@ -130,6 +130,30 @@ func main() {
 					Usage:   "laod SSL secret key from `FILE`",
 				},
 			),
+			altsrc.NewIntFlag(
+				&cli.IntFlag{
+					Name:    "code-validity-min",
+					Aliases: []string{"I"},
+					Usage:   "code validity in minutes",
+					Value:   180,
+				},
+			),
+			altsrc.NewIntFlag(
+				&cli.IntFlag{
+					Name:    "code-length",
+					Aliases: []string{"L"},
+					Usage:   "length of generated codes",
+					Value:   8,
+				},
+			),
+			altsrc.NewIntFlag(
+				&cli.IntFlag{
+					Name:    "min-password-score",
+					Aliases: []string{"S"},
+					Usage:   "minimum acceptable password score computed by zxcvbn",
+					Value:   3,
+				},
+			),
 			altsrc.NewPathFlag(
 				&cli.PathFlag{
 					Name:    "handler-config",
@@ -161,6 +185,9 @@ func main() {
 					UseHTTP:                 ctx.Bool("http"),
 					CertFilePath:            ctx.Path("cert-file"),
 					KeyFilePath:             ctx.Path("key-file"),
+					CodeValidityMinute:      ctx.Int("code-validity-min"),
+					CodeLength:              ctx.Int("code-length"),
+					MinPasswordScore:        ctx.Int("min-password-score"),
 					HandlerCfg:              ctx.Path("handler-config"),
 				},
 			)
