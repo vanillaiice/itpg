@@ -4,6 +4,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// DB is the interface for the database.
 type DB interface {
 	Close() error
 	AddCourse(course *Course) error

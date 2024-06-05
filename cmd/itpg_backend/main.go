@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 
 	"github.com/urfave/cli/v2"
@@ -8,13 +9,14 @@ import (
 	"github.com/vanillaiice/itpg"
 )
 
-const Version = "v0.4.3"
+// version is the current version.
+const version = "v0.4.4"
 
 func main() {
 	app := &cli.App{
 		Name:    "itpg-backend",
 		Suggest: true,
-		Version: Version,
+		Version: version,
 		Authors: []*cli.Author{{Name: "vanillaiice", Email: "vanillaiice1@proton.me"}},
 		Usage:   "Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.",
 		Flags: []cli.Flag{
@@ -128,6 +130,14 @@ func main() {
 					Usage:   "laod SSL secret key from `FILE`",
 				},
 			),
+			altsrc.NewPathFlag(
+				&cli.PathFlag{
+					Name:    "handler-config",
+					Aliases: []string{"n"},
+					Usage:   "load JSON handler config from `FILE`",
+					Value:   "handlers.json",
+				},
+			),
 			&cli.StringFlag{
 				Name:    "load",
 				Aliases: []string{"l"},
@@ -151,6 +161,7 @@ func main() {
 					UseHTTP:                 ctx.Bool("http"),
 					CertFilePath:            ctx.Path("cert-file"),
 					KeyFilePath:             ctx.Path("key-file"),
+					HandlerCfg:              ctx.Path("handler-config"),
 				},
 			)
 		},
@@ -159,6 +170,6 @@ func main() {
 	app.Before = altsrc.InitInputSourceWithContext(app.Flags, altsrc.NewTomlSourceFromFlagFunc("load"))
 
 	if err := app.Run(os.Args); err != nil {
-		itpg.Logger.Fatal().Msg(err.Error())
+		log.Fatal(err)
 	}
 }

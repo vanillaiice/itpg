@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"math/rand"
 	"slices"
 	"testing"
@@ -35,7 +36,7 @@ func initDB(path ...string) (*DB, error) {
 		path = append(path, ":memory:")
 	}
 
-	db, err := New(path[0])
+	db, err := New(path[0], context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func initDB(path ...string) (*DB, error) {
 }
 
 func TestNew(t *testing.T) {
-	db, err := New(":memory:")
+	db, err := New(":memory:", context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -612,14 +613,14 @@ func TestAverageScore(t *testing.T) {
 	}
 }
 
-func TestExecStmt(t *testing.T) {
+func TestExecStmtContext(t *testing.T) {
 	db, err := initDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
 
-	err = execStmt(db.conn, "SELECT * FROM Courses")
+	err = execStmtContext(db.conn, db.ctx, "SELECT * FROM Courses")
 	if err != nil {
 		t.Error(err)
 	}

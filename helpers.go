@@ -89,13 +89,13 @@ func validAllowedDomains(domains []string) (err error) {
 
 // checkDomainAllowed checks if the given domain is allowed based on the list of allowed mail domains.
 func checkDomainAllowed(domain string) (err error) {
-	if len(AllowedMailDomains) == 0 {
+	if len(allowedMailDomains) == 0 {
 		return responses.ErrEmailDomainNotAllowed
 	}
-	if AllowedMailDomains[0] == "*" {
+	if allowedMailDomains[0] == "*" {
 		return
 	}
-	if !slices.Contains(AllowedMailDomains, domain) {
+	if !slices.Contains(allowedMailDomains, domain) {
 		return responses.ErrEmailDomainNotAllowed
 	}
 	return

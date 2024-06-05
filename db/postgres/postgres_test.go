@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
@@ -71,7 +72,7 @@ func TestMain(m *testing.M) {
 
 	pool.MaxWait = 120 * time.Second
 	if err = pool.Retry(func() error {
-		TestDB, err = New(TestDBUrl)
+		TestDB, err = New(TestDBUrl, context.Background())
 		return err
 	}); err != nil {
 		log.Fatal(err)
@@ -97,7 +98,7 @@ func initDB() (err error) {
 		return
 	}
 
-	TestDB, err = New(TestDBUrl)
+	TestDB, err = New(TestDBUrl, context.Background())
 	if err != nil {
 		return
 	}
@@ -138,7 +139,7 @@ func initDB() (err error) {
 }
 
 func TestNew(t *testing.T) {
-	db, err := New(TestDBUrl)
+	db, err := New(TestDBUrl, context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

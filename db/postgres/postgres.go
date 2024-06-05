@@ -12,14 +12,14 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-// MaxRowReturn represents the maximum number of rows returned by a query
-const MaxRowReturn = 100
+// maxRowReturn represents the maximum number of rows returned by a query
+const maxRowReturn = 100
 
-// RoundPrecision is the number decimals to use when rounding
-const RoundPrecision = 2
+// roundPrecision is the number decimals to use when rounding
+const roundPrecision = 2
 
-// DefaultHash is the hash value used when adding course to a professor
-const DefaultHash = ""
+// defaultHash is the hash value used when adding course to a professor
+const defaultHash = ""
 
 // DB is a struct contaning a SQL database connection
 type DB struct {
@@ -28,9 +28,7 @@ type DB struct {
 }
 
 // NewDB initializes a new database connection and sets up the necessary tables if they don't exist.
-func New(url string) (db *DB, err error) {
-	ctx := context.Background()
-
+func New(url string, ctx context.Context) (db *DB, err error) {
 	conn, err := pgx.Connect(ctx, url)
 	if err != nil {
 		return nil, err
@@ -150,7 +148,7 @@ func (db *DB) AddProfessorMany(names []string) (err error) {
 // AddCourseProfessor adds a course to a professor in the database.
 func (db *DB) AddCourseProfessor(professorUUID, courseCode string) (err error) {
 	stmt := "INSERT INTO Scores(hash, professor_uuid, course_code) VALUES($1, $2, $3)"
-	return execStmt(db.ctx, db.conn, stmt, DefaultHash, professorUUID, courseCode)
+	return execStmt(db.ctx, db.conn, stmt, defaultHash, professorUUID, courseCode)
 }
 
 // AddCourseProfessorMany adds courses to professors in the database.
@@ -165,7 +163,7 @@ func (db *DB) AddCourseProfessorMany(professorUUIDS, courseCodes []string) (err 
 	}
 
 	for i := 0; i < len(professorUUIDS); i++ {
-		if _, err = db.conn.Exec(db.ctx, stmt.Name, DefaultHash, professorUUIDS[i], courseCodes[i]); err != nil {
+		if _, err = db.conn.Exec(db.ctx, stmt.Name, defaultHash, professorUUIDS[i], courseCodes[i]); err != nil {
 			return err
 		}
 	}
@@ -231,7 +229,7 @@ func (db *DB) GetLastCourses() (courses []*itpgDB.Course, err error) {
 		LIMIT $1
 	`
 
-	rows, err := db.conn.Query(db.ctx, stmt, MaxRowReturn)
+	rows, err := db.conn.Query(db.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -258,7 +256,7 @@ func (db *DB) GetLastProfessors() (professors []*itpgDB.Professor, err error) {
 		LIMIT $1
 	`
 
-	rows, err := db.conn.Query(db.ctx, stmt, MaxRowReturn)
+	rows, err := db.conn.Query(db.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -296,7 +294,7 @@ func (db *DB) GetLastScores() (scores []*itpgDB.Score, err error) {
 		LIMIT $1
 	`
 
-	rows, err := db.conn.Query(db.ctx, stmt, MaxRowReturn)
+	rows, err := db.conn.Query(db.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -489,7 +487,7 @@ func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*itpgDB.Sc
 
 	args := pgx.NamedArgs{
 		"name_like":      fmt.Sprintf("%%%s%%", nameLike),
-		"max_row_return": MaxRowReturn,
+		"max_row_return": maxRowReturn,
 	}
 
 	rows, err := db.conn.Query(db.ctx, stmt, args)
@@ -574,7 +572,7 @@ func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*itpgDB.Score
 
 	args := pgx.NamedArgs{
 		"name_like":      fmt.Sprintf("%%%s%%", nameLike),
-		"max_row_return": MaxRowReturn,
+		"max_row_return": maxRowReturn,
 	}
 
 	rows, err := db.conn.Query(db.ctx, stmt, args)
@@ -659,7 +657,7 @@ func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score
 
 	args := pgx.NamedArgs{
 		"code_like":      fmt.Sprintf("%%%s%%", codeLike),
-		"max_row_return": MaxRowReturn,
+		"max_row_return": maxRowReturn,
 	}
 
 	rows, err := db.conn.Query(db.ctx, stmt, args)
@@ -753,7 +751,7 @@ func averageScore(scores ...float32) float32 {
 
 	avg := sum / float32(len(scores))
 
-	return float32(decimal.NewFromFloat32(avg).Round(RoundPrecision).InexactFloat64())
+	return float32(decimal.NewFromFloat32(avg).Round(roundPrecision).InexactFloat64())
 }
 
 // execStmt executes a SQL statement.

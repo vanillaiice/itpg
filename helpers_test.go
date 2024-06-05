@@ -133,7 +133,7 @@ func TestValidAllowedDomains(t *testing.T) {
 
 func TestCheckDomainAllowed(t *testing.T) {
 	var err error
-	AllowedMailDomains = []string{"foo.com", "bar.xyz"}
+	allowedMailDomains = []string{"foo.com", "bar.xyz"}
 	if err = checkDomainAllowed("foo.com"); err != nil {
 		t.Error(err)
 	}
@@ -143,7 +143,7 @@ func TestCheckDomainAllowed(t *testing.T) {
 	if err = checkDomainAllowed("buzz.cc"); err == nil {
 		t.Error("expected failure")
 	}
-	AllowedMailDomains = []string{"*"}
+	allowedMailDomains = []string{"*"}
 	if err = checkDomainAllowed("fizz.cc"); err != nil {
 		t.Error(err)
 	}

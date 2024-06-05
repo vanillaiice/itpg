@@ -1,11 +1,13 @@
 package itpg
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/go-chi/httprate"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog"
@@ -19,114 +21,59 @@ import (
 	"github.com/xyproto/pinterface"
 )
 
-// PathType is the type of the path (admin, user, public).
-type PathType int
-
-// Enum for path types
-const (
-	UserPath   PathType = 0 // UserPath is a path only accessible by users.
-	PublicPath PathType = 1 // PublicPath is a path accessible by anyone.
-	AdminPath  PathType = 2 // AdminPath is a path accessible by admins.
-)
-
 // DatabaseBackend is the type of database backend to use.
 type DatabaseBackend string
 
-// Enum for datbase backend
+// Enum for database backend
 const (
-	Sqlite   DatabaseBackend = "sqlite"
-	Postgres DatabaseBackend = "postgres"
+	sqliteBackend   DatabaseBackend = "sqlite"
+	postgresBackend DatabaseBackend = "postgres"
 )
 
 // LogLevel is the log level to use.
 type LogLevel string
 
-// Enum for log levels.
-const (
-	LogLevelDisabled LogLevel = "disabled"
-	LogLevelInfo     LogLevel = "info"
-	LogLevelError    LogLevel = "error"
-	LogLevelFatal    LogLevel = "fatal"
-)
-
-// LimitHandlerFunc is executed when the request limit is reached.
-var LimitHandlerFunc = httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusTooManyRequests)
-	responses.ErrRequestLimitReached.WriteJSON(w)
-})
-
-// LimiterLenient is a limiter that allows 1000 requests per second per IP.
-var LimiterLenient = httprate.Limit(
-	1000,
-	time.Second,
-	httprate.WithKeyFuncs(httprate.KeyByIP),
-	LimitHandlerFunc,
-)
-
-// LimiterModerate is a limiter that allows 1000 requests per minute per IP.
-var LimiterModerate = httprate.Limit(
-	1000,
-	time.Minute,
-	httprate.WithKeyFuncs(httprate.KeyByIP),
-	LimitHandlerFunc,
-)
-
-// LimiterStrict is a limiter that allows 500 requests per hour per IP.
-var LimiterStrict = httprate.Limit(
-	500,
-	time.Hour,
-	httprate.WithKeyFuncs(httprate.KeyByIP),
-	LimitHandlerFunc,
-)
-
-// LimiterVeryStrict is a limiter that allows 100 requests per hour per IP.
-var LimiterVeryStrict = httprate.Limit(
-	100,
-	1*time.Hour,
-	httprate.WithKeyFuncs(httprate.KeyByIP),
-	LimitHandlerFunc,
-)
-
-// HandlerInfo represents a struct containing information about an HTTP handler.
-type HandlerInfo struct {
-	Path     string                                   // Path specifies the URL pattern for which the handler is responsible.
-	Handler  func(http.ResponseWriter, *http.Request) // Handler is the function that will be called to handle HTTP requests.
-	Method   string                                   // Method specifies the HTTP method associated with the handler.
-	PathType PathType                                 // PathType is the type of the path (admin, user, public).
-	Limiter  func(http.Handler) http.Handler          // Limiter is the limiter used to limit requests.
+// logLevelMap is the map of log levels.
+var logLevelMap = map[string]zerolog.Level{
+	"disabled": zerolog.Disabled,
+	"debug":    zerolog.DebugLevel,
+	"info":     zerolog.InfoLevel,
+	"warn":     zerolog.WarnLevel,
+	"error":    zerolog.ErrorLevel,
+	"fatal":    zerolog.FatalLevel,
 }
 
-// DataDB represents a database connection,
+// dataDb represents a database connection,
 // storing professor names, course codes and names,
 // and professor scores.
-var DataDB db.DB
+var dataDb db.DB
 
-// UserState stores the state of all users.
-var UserState pinterface.IUserState
+// userState stores the state of all users.
+var userState pinterface.IUserState
 
-// PasswordResetURL is the URL of the password reset web page.
+// passwordResetURL is the URL of the password reset web page.
 // An example URL would be: https://demo.itpg.cc/changepass.
 // The backend server will then append the following to the previous URL:
 // ?code=foobarbaz, and send it to the user's email.
 // Then, the website should get the email and new password of the user,
 // and make the following example POST request to the api server:
 // curl https://api.itpg.cc/resetpass -d '{"code": "foobarbaz", "email": "foo@bar.com", "password": "fizzbuzz"}'
-var PasswordResetWebsiteURL string
+var passwordResetWebsiteURL string
 
-// CookieTimeout represents the duration after which a session cookie expires.
-var CookieTimeout time.Duration
+// cookieTimeout represents the duration after which a session cookie expires.
+var cookieTimeout time.Duration
 
-// Logger is the logger used by the server.
-var Logger = log.Logger
+// logger is the logger used by the server.
+var logger = log.Logger
 
-// RunConfig defines the server's configuration settings.
+// RunConfig defines the server's confiuration.
 type RunConfig struct {
 	Port                    string          // Port on which the server will run.
 	DbURL                   string          // Path to the SQLite database file.
 	DbBackend               DatabaseBackend // Database backend type.
 	LogLevel                LogLevel        // Log level.
 	UsersDBPath             string          // Path to the users BOLT database file.
-	SMTPEnvPath             string          // Path to the .env file containing SMTP configuration.
+	SMTPEnvPath             string          // Path to the .env file containing SMTP cfguration.
 	PasswordResetWebsiteURL string          // URL to the password reset website page.
 	AllowedOrigins          []string        // List of allowed origins for CORS.
 	AllowedMailDomains      []string        // List of allowed mail domains for registering with the service.
@@ -135,48 +82,42 @@ type RunConfig struct {
 	CertFilePath            string          // Path to the certificate file (required for HTTPS).
 	KeyFilePath             string          // Path to the key file (required for HTTPS).
 	CookieTimeout           int             // Duration in minute after which a session cookie expires.
+	HandlerCfg              string          // Handler config json file.
 }
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
-func Run(config *RunConfig) (err error) {
-	if err = validAllowedDomains(config.AllowedMailDomains); err != nil {
+func Run(cfg *RunConfig) (err error) {
+	if err = validAllowedDomains(cfg.AllowedMailDomains); err != nil {
 		return err
 	}
-	AllowedMailDomains = config.AllowedMailDomains
+	allowedMailDomains = cfg.AllowedMailDomains
 
-	if err = InitCredsSMTP(config.SMTPEnvPath, !config.UseSMTP); err != nil {
+	if err = initCredsSmtp(cfg.SMTPEnvPath, !cfg.UseSMTP); err != nil {
 		return err
 	}
 
-	switch config.LogLevel {
-	case LogLevelDisabled:
-		zerolog.SetGlobalLevel(zerolog.Disabled)
-	case LogLevelInfo:
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case LogLevelError:
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case LogLevelFatal:
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	default:
-		return fmt.Errorf("invalid log level: %s", string(config.LogLevel))
+	logLevel, ok := logLevelMap[string(cfg.LogLevel)]
+	if !ok {
+		return fmt.Errorf("invalid log level: %s", cfg.LogLevel)
 	}
+	zerolog.SetGlobalLevel(logLevel)
 
-	switch config.DbBackend {
-	case Sqlite:
-		DataDB, err = sqlite.New(config.DbURL)
-	case Postgres:
-		DataDB, err = postgres.New(config.DbURL)
+	switch cfg.DbBackend {
+	case sqliteBackend:
+		dataDb, err = sqlite.New(cfg.DbURL, context.Background())
+	case postgresBackend:
+		dataDb, err = postgres.New(cfg.DbURL, context.Background())
 	default:
-		return fmt.Errorf("invalid database backend: %s", string(config.DbBackend))
+		return fmt.Errorf("invalid database backend: %s", cfg.DbBackend)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	defer DataDB.Close()
+	defer dataDb.Close()
 
-	perm, err := permissionbolt.NewWithConf(config.UsersDBPath)
+	perm, err := permissionbolt.NewWithConf(cfg.UsersDBPath)
 	if err != nil {
 		return err
 	}
@@ -185,85 +126,65 @@ func Run(config *RunConfig) (err error) {
 		responses.ErrPermissionDenied.WriteJSON(w)
 	})
 
-	CookieTimeout = time.Minute * time.Duration(config.CookieTimeout)
-	UserState = perm.UserState()
-	UserState.SetCookieTimeout(int64(CookieTimeout.Seconds()))
+	cookieTimeout = time.Minute * time.Duration(cfg.CookieTimeout)
 
-	PasswordResetWebsiteURL = config.PasswordResetWebsiteURL
+	userState = perm.UserState()
+
+	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
+
+	passwordResetWebsiteURL = cfg.PasswordResetWebsiteURL
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   config.AllowedOrigins,
+		AllowedOrigins:   cfg.AllowedOrigins,
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 		AllowCredentials: true,
 	})
 
-	handlers := []*HandlerInfo{
-		// User
-		{"/course/grade", GradeCourseProfessor, http.MethodPost, UserPath, LimiterModerate},
-		{"/refresh", RefreshCookie, http.MethodPost, UserPath, LimiterLenient},
-		{"/logout", Logout, http.MethodPost, UserPath, LimiterLenient},
-		{"/clear", ClearCookie, http.MethodPost, UserPath, LimiterLenient},
-		{"/changepass", ChangePassword, http.MethodPost, UserPath, LimiterStrict},
-		{"/delete", DeleteAccount, http.MethodPost, UserPath, LimiterVeryStrict},
-		{"/ping", Ping, http.MethodGet, UserPath, LimiterLenient},
-		// Public
-		{"/course/all", GetLastCourses, http.MethodGet, PublicPath, LimiterLenient},
-		{"/professor/all", GetLastProfessors, http.MethodGet, PublicPath, LimiterLenient},
-		{"/score/all", GetLastScores, http.MethodGet, PublicPath, LimiterLenient},
-		{"/course/{uuid}", GetCoursesByProfessorUUID, http.MethodGet, PublicPath, LimiterLenient},
-		{"/professor/{code}", GetProfessorsByCourseCode, http.MethodGet, PublicPath, LimiterLenient},
-		{"/score/prof/{uuid}", GetScoresByProfessorUUID, http.MethodGet, PublicPath, LimiterLenient},
-		{"/score/profname/{name}", GetScoresByProfessorName, http.MethodGet, PublicPath, LimiterLenient},
-		{"/score/profnamelike/{name}", GetScoresByProfessorNameLike, http.MethodGet, PublicPath, LimiterLenient},
-		{"/score/coursename/{name}", GetScoresByCourseName, http.MethodGet, PublicPath, LimiterLenient},
-		{"/score/coursenamelike/{name}", GetScoresByCourseNameLike, http.MethodGet, PublicPath, LimiterLenient},
-		{"/score/coursecode/{code}", GetScoresByCourseCode, http.MethodGet, PublicPath, LimiterLenient},
-		{"/score/coursecodelike/{code}", GetScoresByCourseCodeLike, http.MethodGet, PublicPath, LimiterLenient},
-		{"/login", Login, http.MethodPost, PublicPath, LimiterLenient},
-		{"/register", Register, http.MethodPost, PublicPath, LimiterModerate},
-		{"/confirm", Confirm, http.MethodPost, PublicPath, LimiterModerate},
-		{"/newconfirmationcode", SendNewConfirmationCode, http.MethodPost, PublicPath, LimiterStrict},
-		{"/sendresetlink", SendResetLink, http.MethodPost, PublicPath, LimiterVeryStrict},
-		{"/resetpass", ResetPassword, http.MethodPost, PublicPath, LimiterVeryStrict},
-		// Admin
-		{"course/add", AddCourse, http.MethodPost, AdminPath, LimiterLenient},
-		{"course/remove", RemoveCourse, http.MethodDelete, AdminPath, LimiterLenient},
-		{"course/removeforce", RemoveCourseForce, http.MethodDelete, AdminPath, LimiterLenient},
-		{"course/addprof", AddCourseProfessor, http.MethodPost, AdminPath, LimiterLenient},
-		{"professor/add", AddProfessor, http.MethodDelete, AdminPath, LimiterLenient},
-		{"professor/remove", RemoveProfessor, http.MethodDelete, AdminPath, LimiterLenient},
-		{"professor/removeforce", RemoveProfessorForce, http.MethodDelete, AdminPath, LimiterLenient},
+	handlerCfg, err := os.ReadFile(cfg.HandlerCfg)
+	if err != nil {
+		return err
+	}
+
+	handlers, err := parseHandlers(bytes.NewReader(handlerCfg))
+	if err != nil {
+		return err
 	}
 
 	router := mux.NewRouter()
 	for _, h := range handlers {
 		switch h.PathType {
-		case UserPath:
-			router.Handle(h.Path, h.Limiter(checkCookieExpiryMiddleware(checkConfirmedMiddleware(h.Handler)))).Methods(h.Method)
+		case adminPath:
+			router.Handle(h.Path, h.limiter(checkCookieExpiryMiddleware(h.Handler))).Methods(h.Method)
+			perm.AddAdminPath(h.Path)
+		case userPath:
+			router.Handle(h.Path, h.limiter(checkCookieExpiryMiddleware(checkConfirmedMiddleware(h.Handler)))).Methods(h.Method)
 			perm.AddUserPath(h.Path)
-		case PublicPath:
-			router.Handle(h.Path, h.Limiter(DummyMiddleware(h.Handler))).Methods(h.Method)
+		case publicPath:
+			router.Handle(h.Path, h.limiter(DummyMiddleware(h.Handler))).Methods(h.Method)
 			perm.AddPublicPath(h.Path)
+		default:
+			return fmt.Errorf("invalid path type: %d", h.PathType)
 		}
 	}
 
 	n := negroni.Classic()
+
 	n.Use(c)
 	n.Use(perm)
 	n.UseHandler(router)
 
-	s := fmt.Sprintf("itpg-backend (%s) listening on port %s", config.DbBackend, config.Port)
-	if !config.UseSMTP {
+	s := fmt.Sprintf("itpg-backend (%s) listening on port %s", cfg.DbBackend, cfg.Port)
+	if !cfg.UseSMTP {
 		s += " with SMTPS,"
 	} else {
 		s += " with SMTP,"
 	}
 
-	if !config.UseHTTP {
+	if !cfg.UseHTTP {
 		log.Info().Msgf("%s with HTTPS\n", s)
-		return http.ListenAndServeTLS(":"+config.Port, config.CertFilePath, config.KeyFilePath, n)
+		return http.ListenAndServeTLS(":"+cfg.Port, cfg.CertFilePath, cfg.KeyFilePath, n)
 	} else {
 		log.Info().Msgf("%s with HTTP\n", s)
-		return http.ListenAndServe(":"+config.Port, n)
+		return http.ListenAndServe(":"+cfg.Port, n)
 	}
 }

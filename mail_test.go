@@ -7,7 +7,7 @@ import (
 	smtpmock "github.com/mocktools/go-smtp-mock/v2"
 )
 
-func initTestSMTPServer() (*smtpmock.Server, error) {
+func initTestSmtpServer() (*smtpmock.Server, error) {
 	server := smtpmock.New(smtpmock.ConfigurationAttr{})
 	if err := server.Start(); err != nil {
 		return nil, err
@@ -15,28 +15,28 @@ func initTestSMTPServer() (*smtpmock.Server, error) {
 	return server, nil
 }
 
-func TestInitCredsSMTP(t *testing.T) {
-	if err := InitCredsSMTP("test.env", false); err != nil {
+func TestInitCredsSmtp(t *testing.T) {
+	if err := initCredsSmtp("test.env", false); err != nil {
 		t.Error(err)
 	}
 }
 
-func TestInitCredsSMTPS(t *testing.T) {
-	if err := InitCredsSMTP("test.env", true); err != nil {
+func TestInitCredsSmtps(t *testing.T) {
+	if err := initCredsSmtp("test.env", true); err != nil {
 		t.Error(err)
 	}
 }
 
-func TestSendMailSMTP(t *testing.T) {
-	server, err := initTestSMTPServer()
+func TestSendMailSmtp(t *testing.T) {
+	server, err := initTestSmtpServer()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	SMTPURL = fmt.Sprintf("127.0.0.1:%d", server.PortNumber())
-	MailFromAddress = "testing@test.com"
+	smtpUrl = fmt.Sprintf("127.0.0.1:%d", server.PortNumber())
+	mailFromAddress = "testing@test.com"
 
-	if err := SendMailSMTP("takumi@fuji.ae", []byte("iamsuperduperfastondownhills")); err != nil {
+	if err := sendMailSmtp("takumi@fuji.ae", []byte("iamsuperduperfastondownhills")); err != nil {
 		t.Error(err)
 	}
 
@@ -45,20 +45,20 @@ func TestSendMailSMTP(t *testing.T) {
 	}
 }
 
-func TestSendMailSMTPS(t *testing.T) {
-	server, err := initTestSMTPServer()
+func TestSendMailSmtpS(t *testing.T) {
+	server, err := initTestSmtpServer()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	Username = "tester"
-	Password = "testtter"
-	SMTPHost = "127.0.0.1"
-	SMTPURL = fmt.Sprintf("%s:%d", SMTPHost, server.PortNumber())
-	MailFromAddress = "testing@test.com"
+	username = "tester"
+	password = "testtter"
+	smtpHost = "127.0.0.1"
+	smtpUrl = fmt.Sprintf("%s:%d", smtpHost, server.PortNumber())
+	mailFromAddress = "testing@test.com"
 
-	/* The below code block will fail, because the go-mock-smtp package does not support auth.
-	if err := SendMailSMTPS("takumi@fuji.ae", "iamsuperduperfastondownhills"); err != nil {
+	/* The code block below will fail because the go-mock-smtp package does not support auth.
+	if err := SendMailSMTPS("takumi@fuji.jp", "iamsuperduperfastondownhills"); err != nil {
 		t.Error(err)
 	}
 	*/

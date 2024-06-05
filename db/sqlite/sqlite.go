@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -13,22 +14,23 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-// MaxRowReturn represents the maximum number of rows returned by a query
-const MaxRowReturn = 100
+// maxRowReturn represents the maximum number of rows returned by a query
+const maxRowReturn = 100
 
-// RoundPrecision is the number decimals to use when rounding
-const RoundPrecision = 2
+// roundPrecision is the number decimals to use when rounding
+const roundPrecision = 2
 
-// DefaultHash is the hash value used when adding course to a professor
-const DefaultHash = ""
+// defaultHash is the hash value used when adding course to a professor
+const defaultHash = ""
 
 // DB is a struct contaning a SQL database connection
 type DB struct {
 	conn *sql.DB
+	ctx  context.Context
 }
 
-// NewDB initializes a new database connection and sets up the necessary tables if they don't exist.
-func New(url string) (db *DB, err error) {
+// New initializes a new database connection and sets up the necessary tables if they don't exist.
+func New(url string, ctx context.Context) (db *DB, err error) {
 	var conn *sql.DB
 
 	conn, err = sql.Open("sqlite", url)
@@ -82,11 +84,11 @@ func New(url string) (db *DB, err error) {
 		);
 	`
 
-	if err := execStmt(conn, stmt); err != nil {
+	if err := execStmtContext(conn, ctx, stmt); err != nil {
 		return nil, err
 	}
 
-	db = &DB{conn: conn}
+	db = &DB{conn: conn, ctx: ctx}
 
 	return
 }
@@ -99,12 +101,12 @@ func (db *DB) Close() error {
 // AddCourse adds a new course to the database.
 func (db *DB) AddCourse(course *itpgDB.Course) (err error) {
 	stmt := "INSERT INTO Courses(code, name, inserted_at) VALUES(?, ?, ?)"
-	return execStmt(db.conn, stmt, course.Code, course.Name, time.Now().UnixNano())
+	return execStmtContext(db.conn, db.ctx, stmt, course.Code, course.Name, time.Now().UnixNano())
 }
 
 // AddCourseMany adds new courses to the database.
 func (db *DB) AddCourseMany(courses []*itpgDB.Course) (err error) {
-	stmt, err := db.conn.Prepare("INSERT INTO Courses(code, name, inserted_at) VALUES(?, ?, ?)")
+	stmt, err := db.conn.PrepareContext(db.ctx, "INSERT INTO Courses(code, name, inserted_at) VALUES(?, ?, ?)")
 	if err != nil {
 		return
 	}
@@ -126,12 +128,12 @@ func (db *DB) AddProfessor(name string) (err error) {
 		return
 	}
 	stmt := "INSERT INTO Professors(uuid, name, inserted_at) VALUES(?, ?, ?)"
-	return execStmt(db.conn, stmt, professorUUID, name, time.Now().UnixNano())
+	return execStmtContext(db.conn, db.ctx, stmt, professorUUID, name, time.Now().UnixNano())
 }
 
 // AddProfessorMany adds new professors to the database.
 func (db *DB) AddProfessorMany(names []string) (err error) {
-	stmt, err := db.conn.Prepare("INSERT INTO Professors(uuid, name, inserted_at) VALUES(?, ?, ?)")
+	stmt, err := db.conn.PrepareContext(db.ctx, "INSERT INTO Professors(uuid, name, inserted_at) VALUES(?, ?, ?)")
 	if err != nil {
 		return
 	}
@@ -154,7 +156,7 @@ func (db *DB) AddProfessorMany(names []string) (err error) {
 // AddCourseProfessor adds a course to a professor in the database.
 func (db *DB) AddCourseProfessor(professorUUID, courseCode string) (err error) {
 	stmt := "INSERT INTO Scores(hash, professor_uuid, course_code) VALUES(?, ?, ?)"
-	return execStmt(db.conn, stmt, DefaultHash, professorUUID, courseCode)
+	return execStmtContext(db.conn, db.ctx, stmt, defaultHash, professorUUID, courseCode)
 }
 
 // AddCourseProfessorMany adds courses to professors in the database.
@@ -163,14 +165,14 @@ func (db *DB) AddCourseProfessorMany(professorUUIDS, courseCodes []string) (err 
 		return fmt.Errorf("unequal slice length")
 	}
 
-	stmt, err := db.conn.Prepare("INSERT INTO Scores(hash, professor_uuid, course_code) VALUES(?, ?, ?)")
+	stmt, err := db.conn.PrepareContext(db.ctx, "INSERT INTO Scores(hash, professor_uuid, course_code) VALUES(?, ?, ?)")
 	if err != nil {
 		return
 	}
 	defer stmt.Close()
 
 	for i := 0; i < len(professorUUIDS); i++ {
-		if _, err = stmt.Exec(DefaultHash, professorUUIDS[i], courseCodes[i]); err != nil {
+		if _, err = stmt.Exec(defaultHash, professorUUIDS[i], courseCodes[i]); err != nil {
 			return err
 		}
 	}
@@ -194,7 +196,7 @@ func (db *DB) RemoveCourse(code string, forceDelete bool) (err error) {
 			continue
 		}
 
-		if err = execStmt(db.conn, s.s, s.args); err != nil {
+		if err = execStmtContext(db.conn, db.ctx, s.s, s.args); err != nil {
 			return
 		}
 	}
@@ -218,7 +220,7 @@ func (db *DB) RemoveProfessor(professorUUID string, forceDelete bool) (err error
 			continue
 		}
 
-		if err = execStmt(db.conn, s.s, s.args); err != nil {
+		if err = execStmtContext(db.conn, db.ctx, s.s, s.args); err != nil {
 			return
 		}
 	}
@@ -236,7 +238,7 @@ func (db *DB) GetLastCourses() (courses []*itpgDB.Course, err error) {
 		LIMIT ?
 	`
 
-	rows, err := db.conn.Query(stmt, MaxRowReturn)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -263,7 +265,7 @@ func (db *DB) GetLastProfessors() (professors []*itpgDB.Professor, err error) {
 		LIMIT ?
 	`
 
-	rows, err := db.conn.Query(stmt, MaxRowReturn)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -301,7 +303,7 @@ func (db *DB) GetLastScores() (scores []*itpgDB.Score, err error) {
 		LIMIT ?
 	`
 
-	rows, err := db.conn.Query(stmt, MaxRowReturn)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -330,7 +332,7 @@ func (db *DB) GetCoursesByProfessorUUID(UUID string) (courses []*itpgDB.Course, 
 		DESC
 	`
 
-	rows, err := db.conn.Query(stmt, UUID)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, UUID)
 	if err != nil {
 		return
 	}
@@ -358,7 +360,7 @@ func (db *DB) GetProfessorsByCourseCode(code string) (professors []*itpgDB.Profe
 		DESC
 	`
 
-	rows, err := db.conn.Query(stmt, code)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, code)
 	if err != nil {
 		return
 	}
@@ -383,7 +385,7 @@ func (db *DB) GetProfessorUUIDByName(name string) (uuid string, err error) {
 		WHERE name = ?
 	`
 
-	row := db.conn.QueryRow(stmt, name)
+	row := db.conn.QueryRowContext(db.ctx, stmt, name)
 	if err = row.Scan(&uuid); err != nil {
 		return
 	}
@@ -411,7 +413,7 @@ func (db *DB) GetScoresByProfessorUUID(UUID string) (scores []*itpgDB.Score, err
 		DESC
 	`
 
-	rows, err := db.conn.Query(stmt, UUID)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, UUID)
 	if err != nil {
 		return
 	}
@@ -450,7 +452,7 @@ func (db *DB) GetScoresByProfessorName(name string) (scores []*itpgDB.Score, err
 		DESC
 	`
 
-	rows, err := db.conn.Query(stmt, name)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, name)
 	if err != nil {
 		return
 	}
@@ -492,7 +494,7 @@ func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*itpgDB.Sc
 		LIMIT ?
 	`
 
-	rows, err := db.conn.Query(stmt, fmt.Sprintf("%%%s%%", nameLike), MaxRowReturn)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, fmt.Sprintf("%%%s%%", nameLike), maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -530,7 +532,7 @@ func (db *DB) GetScoresByCourseName(name string) (scores []*itpgDB.Score, err er
 		DESC
 	`
 
-	rows, err := db.conn.Query(stmt, name)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, name)
 	if err != nil {
 		return
 	}
@@ -572,7 +574,7 @@ func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*itpgDB.Score
 		LIMIT ?
 	`
 
-	rows, err := db.conn.Query(stmt, fmt.Sprintf("%%%s%%", nameLike), MaxRowReturn)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, fmt.Sprintf("%%%s%%", nameLike), maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -610,7 +612,7 @@ func (db *DB) GetScoresByCourseCode(code string) (scores []*itpgDB.Score, err er
 		DESC
 	`
 
-	rows, err := db.conn.Query(stmt, code)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, code)
 	if err != nil {
 		return
 	}
@@ -652,7 +654,7 @@ func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score
 		LIMIT ?
 	`
 
-	rows, err := db.conn.Query(stmt, fmt.Sprintf("%%%s%%", codeLike), MaxRowReturn)
+	rows, err := db.conn.QueryContext(db.ctx, stmt, fmt.Sprintf("%%%s%%", codeLike), maxRowReturn)
 	if err != nil {
 		return
 	}
@@ -697,7 +699,7 @@ func (db *DB) GradeCourseProfessor(professorUUID, courseCode, username string, g
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
-	return execStmt(db.conn, stmt, fmt.Sprintf("%d", hash), professorUUID, courseCode, grades[0], grades[1], grades[2], time.Now().UnixNano())
+	return execStmtContext(db.conn, db.ctx, stmt, fmt.Sprintf("%d", hash), professorUUID, courseCode, grades[0], grades[1], grades[2], time.Now().UnixNano())
 }
 
 // CheckGraded checks if a user graded a course.
@@ -708,7 +710,7 @@ func (db *DB) checkGraded(hash uint64) (graded bool, err error) {
 	var count int
 
 	stmt := "SELECT COUNT(*) FROM Scores WHERE hash = ?"
-	if err = db.conn.QueryRow(stmt, fmt.Sprintf("%d", hash)).Scan(&count); err != nil {
+	if err = db.conn.QueryRowContext(db.ctx, stmt, fmt.Sprintf("%d", hash)).Scan(&count); err != nil {
 		return
 	}
 
@@ -728,11 +730,11 @@ func averageScore(scores ...float32) float32 {
 
 	avgScore := sum / float32(len(scores))
 
-	return float32(decimal.NewFromFloat32(avgScore).Round(RoundPrecision).InexactFloat64())
+	return float32(decimal.NewFromFloat32(avgScore).Round(roundPrecision).InexactFloat64())
 }
 
-// execStmt executes a SQL statement.
-func execStmt(conn *sql.DB, stmt string, args ...any) (err error) {
-	_, err = conn.Exec(stmt, args...)
+// execStmtContext executes a SQL statement.
+func execStmtContext(conn *sql.DB, ctx context.Context, stmt string, args ...any) (err error) {
+	_, err = conn.ExecContext(ctx, stmt, args...)
 	return
 }

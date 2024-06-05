@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/golang.org/x/example.svg)](https://pkg.go.dev/github.com/vanillaiice/itpg)
 
-Backend for itpg, which is a platform where students can grade their professors after taking courses.
+Backend server for itpg, which is a platform where students can grade their professors after taking courses.
 This permits future students to make more informed decisions when choosing their courses.
 This repository handles http requests, database transactions, and user state management.
 
@@ -30,7 +30,7 @@ USAGE:
    itpg-backend [global options] command [command options]
 
 VERSION:
-   v0.4.3
+   v0.4.4
 
 AUTHOR:
    vanillaiice <vanillaiice1@proton.me>
@@ -53,6 +53,7 @@ GLOBAL OPTIONS:
    --http, -t                                                                         use HTTP instead of HTTPS (default: false)
    --cert-file FILE, -c FILE                                                          load SSL certificate file from FILE
    --key-file FILE, -k FILE                                                           laod SSL secret key from FILE
+   --handler-config FILE, -n FILE                                                     load JSON handler config from FILE (default: "handlers.json")
    --load FILE, -l FILE                                                               load TOML config from FILE
    --help, -h                                                                         show help
    --version, -v                                                                      print the version
@@ -83,9 +84,13 @@ $ ls itpg-data
 $ docker run --rm -v ${PWD}/itpg-data:/itpg-data vanillaiice/itpg --load itpg-data/config.toml
 ```
 
+# Related Projects
+
+- [itpg-frontend](https://github.com/vanillaiice/itpg-frontend)
+
 # Author
 
-Vanillaiice
+vanillaiice
 
 # Licence
 
