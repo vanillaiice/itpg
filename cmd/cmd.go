@@ -10,7 +10,7 @@ import (
 )
 
 // version is the current version.
-const version = "v0.4.4"
+const version = "v0.5.0"
 
 func Exec() {
 	app := &cli.App{
