@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"log"
@@ -6,13 +6,13 @@ import (
 
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
-	"github.com/vanillaiice/itpg"
+	"github.com/vanillaiice/itpg/server"
 )
 
 // version is the current version.
 const version = "v0.4.4"
 
-func main() {
+func Exec() {
 	app := &cli.App{
 		Name:    "itpg-backend",
 		Suggest: true,
@@ -169,13 +169,13 @@ func main() {
 			},
 		},
 		Action: func(ctx *cli.Context) error {
-			return itpg.Run(
-				&itpg.RunConfig{
+			return server.Run(
+				&server.RunConfig{
 					Port:                    ctx.String("port"),
 					DbURL:                   ctx.String("db"),
-					DbBackend:               itpg.DatabaseBackend(ctx.String("db-backend")),
+					DbBackend:               server.DatabaseBackend(ctx.String("db-backend")),
 					UsersDBPath:             ctx.Path("users-db"),
-					LogLevel:                itpg.LogLevel(ctx.String("log-level")),
+					LogLevel:                server.LogLevel(ctx.String("log-level")),
 					CookieTimeout:           ctx.Int("cookie-timeout"),
 					SMTPEnvPath:             ctx.Path("env"),
 					PasswordResetWebsiteURL: ctx.String("pass-reset-url"),

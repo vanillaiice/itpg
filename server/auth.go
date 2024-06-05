@@ -1,4 +1,4 @@
-package itpg
+package server
 
 import (
 	"fmt"
@@ -100,7 +100,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 	confirmationCode := uuid.String()[:codeLength]
 
-	if err = sendMailFunc(creds.Email, makeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
+	if err = mailer.SendMail(creds.Email, mailer.MakeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
 		logger.Error().Msg(err.Error())
@@ -150,7 +150,7 @@ func sendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	}
 	confirmationCode := uuid.String()[:codeLength]
 
-	if err = sendMailFunc(creds.Email, makeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
+	if err = mailer.SendMail(creds.Email, mailer.MakeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
 		logger.Error().Msg(err.Error())
@@ -426,7 +426,7 @@ func sendResetLink(w http.ResponseWriter, r *http.Request) {
 	}
 	resetCode := uuid.String()
 
-	if err = sendMailFunc(username, makeResetCodeMessage(username, fmt.Sprintf("%s?code=%s", passwordResetWebsiteURL, resetCode))); err != nil {
+	if err = mailer.SendMail(username, mailer.MakeResetCodeMessage(username, fmt.Sprintf("%s?code=%s", passwordResetWebsiteURL, resetCode))); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
 		logger.Error().Msg(err.Error())

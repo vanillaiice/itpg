@@ -11,7 +11,7 @@ This package handles http requests, database transactions, and user state manage
 ## Go install
 
 ```sh
-$ go install github.com/vanillaiice/itpg/cmd/itpg@latest
+$ go install github.com/vanillaiice/itpg@latest
 ```
 
 ## Docker

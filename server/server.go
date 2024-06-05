@@ -1,4 +1,4 @@
-package itpg
+package server
 
 import (
 	"bytes"
@@ -16,6 +16,7 @@ import (
 	"github.com/vanillaiice/itpg/db"
 	"github.com/vanillaiice/itpg/db/postgres"
 	"github.com/vanillaiice/itpg/db/sqlite"
+	"github.com/vanillaiice/itpg/mail"
 	"github.com/vanillaiice/itpg/responses"
 	"github.com/xyproto/permissionbolt/v2"
 	"github.com/xyproto/pinterface"
@@ -42,6 +43,9 @@ var logLevelMap = map[string]zerolog.Level{
 	"error":    zerolog.ErrorLevel,
 	"fatal":    zerolog.FatalLevel,
 }
+
+// mailer is the SMTP client used to send mail.
+var mailer *mail.SmtpClient
 
 // dataDb represents a database connection,
 // storing professor names, course codes and names,
@@ -95,7 +99,8 @@ func Run(cfg *RunConfig) (err error) {
 	}
 	allowedMailDomains = cfg.AllowedMailDomains
 
-	if err = initCredsSmtp(cfg.SMTPEnvPath, !cfg.UseSMTP); err != nil {
+	mailer, err = mail.NewClient(cfg.SMTPEnvPath, !cfg.UseSMTP)
+	if err != nil {
 		return err
 	}
 

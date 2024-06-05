@@ -1,4 +1,4 @@
-package itpg
+package server
 
 import (
 	"bytes"
