@@ -1,0 +1,228 @@
+{
+	"handlers": [
+		{
+			"path": "/course/grade",
+			"pathType": "user",
+			"handler": "gradeCourseProfessor",
+			"limiter": "moderate",
+			"method": "POST"
+		},
+		{
+			"path": "/refresh",
+			"pathType": "user",
+			"handler": "refreshCookie",
+			"limiter": "lenient",
+			"method": "POST" 
+		},
+		{
+			"path": "/logout",
+			"pathType": "user",
+			"handler": "logout",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "/clear",
+			"pathType": "user",
+			"handler": "clearCookie",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "/changepass",
+			"pathType": "user",
+			"handler": "changePassword",
+			"limiter": "strict",
+			"method": "POST"
+		},
+		{
+			"path": "/delete",
+			"pathType": "user",
+			"handler": "deleteAccount",
+			"limiter": "veryStrict",
+			"method": "POST"
+		},
+		{
+			"path": "/ping",
+			"pathType": "user",
+			"handler": "ping",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/course/all",
+			"pathType": "public",
+			"handler": "getLastCourses",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/professor/all",
+			"pathType": "public",
+			"handler": "getLastProfessors",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/score/all",
+			"pathType": "public",
+			"handler": "getLastScores",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/course/{uuid}",
+			"pathType": "public",
+			"handler": "getCoursesByProfessorUUID",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/professor/{code}",
+			"pathType": "public",
+			"handler": "getProfessorsByCourseCode",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/score/prof/{uuid}",
+			"pathType": "public",
+			"handler": "getScoresByProfessorUUID",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/score/profname/{name}",
+			"pathType": "public",
+			"handler": "getScoresByProfessorName",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/score/profnamelike/{name}",
+			"pathType": "public",
+			"handler": "getScoresByProfessorNameLike",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/score/coursename/{name}",
+			"pathType": "public",
+			"handler": "getScoresByCourseName",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/score/coursenamelike/{name}",
+			"pathType": "public",
+			"handler": "getScoresByCourseNameLike",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/score/coursecode/{code}",
+			"pathType": "public",
+			"handler": "getScoresByCourseCode",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/score/coursecodelike/{code}",
+			"pathType": "public",
+			"handler": "getScoresByCourseCodeLike",
+			"limiter": "lenient",
+			"method": "GET"
+		},
+		{
+			"path": "/login",
+			"pathType": "public",
+			"handler": "login",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "/register",
+			"pathType": "public",
+			"handler": "register",
+			"limiter": "moderate",
+			"method": "POST"
+		},
+		{
+			"path": "/confirm",
+			"pathType": "public",
+			"handler": "confirm",
+			"limiter": "moderate",
+			"method": "POST"
+		},
+		{
+			"path": "/newconfirmationcode",
+			"pathType": "public",
+			"handler": "sendNewConfirmationCode",
+			"limiter": "strict",
+			"method": "POST"
+		},
+		{
+			"path": "/sendresetlink",
+			"pathType": "public",
+			"handler": "sendResetLink",
+			"limiter": "veryStrict",
+			"method": "POST"
+		},
+		{
+			"path": "/resetpass",
+			"pathType": "public",
+			"handler": "resetPassword",
+			"limiter": "veryStrict",
+			"method": "POST"
+		},
+		{
+			"path": "course/add",
+			"pathType": "admin",
+			"handler": "addCourse",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "course/remove",
+			"pathType": "admin",
+			"handler": "removeCourse",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "course/removeforce",
+			"pathType": "admin",
+			"handler": "removeCourseForce",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "course/addprof",
+			"pathType": "admin",
+			"handler": "addCourseProfessor",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "professor/add",
+			"pathType": "admin",
+			"handler": "addProfessor",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "professor/remove",
+			"pathType": "admin",
+			"handler": "removeProfessor",
+			"limiter": "lenient",
+			"method": "POST"
+		},
+		{
+			"path": "professor/removeforce",
+			"pathType": "admin",
+			"handler": "removeProfessorForce",
+			"limiter": "lenient",
+			"method": "POST"
+		}
+	]
+}
