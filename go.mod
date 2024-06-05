@@ -12,6 +12,7 @@ require (
 	github.com/mocktools/go-smtp-mock/v2 v2.2.1
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/rs/cors v1.10.1
+	github.com/rs/zerolog v1.32.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/trustelem/zxcvbn v1.0.1
 	github.com/urfave/cli/v2 v2.27.1
@@ -56,7 +57,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
-	github.com/rs/zerolog v1.32.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/test-go/testify v1.1.4 // indirect
