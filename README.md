@@ -30,7 +30,7 @@ USAGE:
    itpg-backend [global options] command [command options]
 
 VERSION:
-   v0.4.4
+   v0.6.0
 
 AUTHOR:
    vanillaiice <vanillaiice1@proton.me>
@@ -43,6 +43,8 @@ GLOBAL OPTIONS:
    --db-backend value, -b value                                                       database backend, either sqlite or postgres (default: "sqlite")
    --db URL, -d URL                                                                   database connection URL (default: "itpg.db")
    --users-db value, -u value                                                         user state management bolt database (default: "users.db")
+   --cache-db URL, -C URL                                                             cache redis database connection URL
+   --cache-ttl value, -T value                                                        cache time-to-live in seconds (default: 10)
    --log-level value, -g value                                                        log level (default: "info")
    --cookie-timeout value, -i value                                                   cookie timeout in minutes (default: 30)
    --env FILE, -e FILE                                                                load SMTP configuration from FILE (default: ".env")
@@ -53,6 +55,9 @@ GLOBAL OPTIONS:
    --http, -t                                                                         use HTTP instead of HTTPS (default: false)
    --cert-file FILE, -c FILE                                                          load SSL certificate file from FILE
    --key-file FILE, -k FILE                                                           laod SSL secret key from FILE
+   --code-validity-min value, -I value                                                code validity in minutes (default: 180)
+   --code-length value, -L value                                                      length of generated codes (default: 8)
+   --min-password-score value, -S value                                               minimum acceptable password score computed by zxcvbn (default: 3)
    --handler-config FILE, -n FILE                                                     load JSON handler config from FILE (default: "handlers.json")
    --load FILE, -l FILE                                                               load TOML config from FILE
    --help, -h                                                                         show help
