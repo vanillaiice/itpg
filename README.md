@@ -30,7 +30,7 @@ USAGE:
    itpg-backend [global options] command [command options]
 
 VERSION:
-   v0.6.0
+   v0.6.1
 
 AUTHOR:
    vanillaiice <vanillaiice1@proton.me>
