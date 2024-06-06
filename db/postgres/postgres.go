@@ -103,8 +103,16 @@ func New(url, cacheUrl string, cacheTtl time.Duration, ctx context.Context) (db 
 }
 
 // Close closes the database connection.
-func (d *DB) Close() error {
-	return d.conn.Close(d.ctx)
+func (d *DB) Close() (err error) {
+	if err = d.conn.Close(d.ctx); err != nil {
+		return
+	}
+
+	if d.cache != nil {
+		err = d.cache.Close()
+	}
+
+	return
 }
 
 // AddCourse adds a new course to the database.
