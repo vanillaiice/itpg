@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -70,19 +72,21 @@ var cookieTimeout time.Duration
 // logger is the logger used by the server.
 var logger = log.Logger
 
-// RunConfig defines the server's confiuration.
-type RunConfig struct {
+// RunCfg defines the server's confiuration.
+type RunCfg struct {
 	Port                    string          // Port on which the server will run.
-	DbURL                   string          // Path to the SQLite database file.
+	DbUrl                   string          // Path to the SQLite database file.
 	DbBackend               DatabaseBackend // Database backend type.
+	CacheUrl                string          // URL to the redis cache database.
+	CacheTtl                int             // Time-to-live of the cache in seconds.
 	LogLevel                LogLevel        // Log level.
-	UsersDBPath             string          // Path to the users BOLT database file.
-	SMTPEnvPath             string          // Path to the .env file containing SMTP cfguration.
+	UsersDbPath             string          // Path to the users BOLT database file.
+	SmtpEnvPath             string          // Path to the .env file containing SMTP cfguration.
 	PasswordResetWebsiteURL string          // URL to the password reset website page.
 	AllowedOrigins          []string        // List of allowed origins for CORS.
 	AllowedMailDomains      []string        // List of allowed mail domains for registering with the service.
-	UseSMTP                 bool            // Whether to use SMTP (false for SMTPS).
-	UseHTTP                 bool            // Whether to use HTTP (false for HTTPS).
+	UseSmtp                 bool            // Whether to use SMTP (false for SMTPS).
+	UseHttp                 bool            // Whether to use HTTP (false for HTTPS).
 	CertFilePath            string          // Path to the certificate file (required for HTTPS).
 	KeyFilePath             string          // Path to the key file (required for HTTPS).
 	CookieTimeout           int             // Duration in minute after which a session cookie expires.
@@ -93,15 +97,15 @@ type RunConfig struct {
 }
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
-func Run(cfg *RunConfig) (err error) {
+func Run(cfg *RunCfg) (err error) {
 	if err = validAllowedDomains(cfg.AllowedMailDomains); err != nil {
-		return err
+		return
 	}
 	allowedMailDomains = cfg.AllowedMailDomains
 
-	mailer, err = mail.NewClient(cfg.SMTPEnvPath, !cfg.UseSMTP)
+	mailer, err = mail.NewClient(cfg.SmtpEnvPath, !cfg.UseSmtp)
 	if err != nil {
-		return err
+		return
 	}
 
 	logLevel, ok := logLevelMap[string(cfg.LogLevel)]
@@ -110,24 +114,28 @@ func Run(cfg *RunConfig) (err error) {
 	}
 	zerolog.SetGlobalLevel(logLevel)
 
+	ctx := context.Background()
+
+	cacheTtl := time.Duration(cfg.CacheTtl) * time.Second
+
 	switch cfg.DbBackend {
 	case sqliteBackend:
-		dataDb, err = sqlite.New(cfg.DbURL, context.Background())
+		dataDb, err = sqlite.New(cfg.DbUrl, cfg.CacheUrl, cacheTtl, ctx)
 	case postgresBackend:
-		dataDb, err = postgres.New(cfg.DbURL, context.Background())
+		dataDb, err = postgres.New(cfg.DbUrl, cfg.CacheUrl, cacheTtl, ctx)
 	default:
 		return fmt.Errorf("invalid database backend: %s", cfg.DbBackend)
 	}
 
 	if err != nil {
-		return err
+		return
 	}
 
 	defer dataDb.Close()
 
-	perm, err := permissionbolt.NewWithConf(cfg.UsersDBPath)
+	perm, err := permissionbolt.NewWithConf(cfg.UsersDbPath)
 	if err != nil {
-		return err
+		return
 	}
 	perm.SetDenyFunction(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -149,16 +157,6 @@ func Run(cfg *RunConfig) (err error) {
 	}
 	confirmationCodeValidityTime = time.Minute * time.Duration(cfg.CodeValidityMinute)
 
-	handlerCfg, err := os.ReadFile(cfg.HandlerCfg)
-	if err != nil {
-		return err
-	}
-
-	handlers, err := parseHandlers(bytes.NewReader(handlerCfg))
-	if err != nil {
-		return err
-	}
-
 	userState = perm.UserState()
 
 	cookieTimeout = time.Minute * time.Duration(cfg.CookieTimeout)
@@ -166,19 +164,30 @@ func Run(cfg *RunConfig) (err error) {
 	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
 
 	router := mux.NewRouter()
+
+	handlerCfg, err := os.ReadFile(cfg.HandlerCfg)
+	if err != nil {
+		return
+	}
+
+	handlers, err := parseHandlers(bytes.NewReader(handlerCfg))
+	if err != nil {
+		return
+	}
+
 	for _, h := range handlers {
-		switch h.PathType {
+		switch h.pathType {
 		case adminPath:
-			router.Handle(h.Path, h.limiter(checkCookieExpiryMiddleware(h.Handler))).Methods(h.Method)
-			perm.AddAdminPath(h.Path)
+			router.Handle(h.path, h.limiter(checkCookieExpiryMiddleware(h.handler))).Methods(h.method)
+			perm.AddAdminPath(h.path)
 		case userPath:
-			router.Handle(h.Path, h.limiter(checkCookieExpiryMiddleware(checkConfirmedMiddleware(h.Handler)))).Methods(h.Method)
-			perm.AddUserPath(h.Path)
+			router.Handle(h.path, h.limiter(checkCookieExpiryMiddleware(checkConfirmedMiddleware(h.handler)))).Methods(h.method)
+			perm.AddUserPath(h.path)
 		case publicPath:
-			router.Handle(h.Path, h.limiter(DummyMiddleware(h.Handler))).Methods(h.Method)
-			perm.AddPublicPath(h.Path)
+			router.Handle(h.path, h.limiter(DummyMiddleware(h.handler))).Methods(h.method)
+			perm.AddPublicPath(h.path)
 		default:
-			return fmt.Errorf("invalid path type: %d", h.PathType)
+			return fmt.Errorf("invalid path type: %d", h.pathType)
 		}
 	}
 
@@ -197,17 +206,31 @@ func Run(cfg *RunConfig) (err error) {
 	n.UseHandler(router)
 
 	s := fmt.Sprintf("itpg-backend (%s) listening on port %s", cfg.DbBackend, cfg.Port)
-	if !cfg.UseSMTP {
+	if !cfg.UseSmtp {
 		s += " with SMTPS,"
 	} else {
 		s += " with SMTP,"
 	}
 
-	if !cfg.UseHTTP {
-		log.Info().Msgf("%s with HTTPS\n", s)
-		return http.ListenAndServeTLS(":"+cfg.Port, cfg.CertFilePath, cfg.KeyFilePath, n)
-	} else {
-		log.Info().Msgf("%s with HTTP\n", s)
-		return http.ListenAndServe(":"+cfg.Port, n)
-	}
+	sigChan := make(chan os.Signal, 1)
+	errChan := make(chan error)
+
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigChan
+		errChan <- fmt.Errorf("%v signal received, shutting down", sig)
+	}()
+
+	go func() {
+		if !cfg.UseHttp {
+			log.Info().Msgf("%s with HTTPS", s)
+			errChan <- http.ListenAndServeTLS(":"+cfg.Port, cfg.CertFilePath, cfg.KeyFilePath, n)
+		} else {
+			log.Info().Msgf("%s with HTTP", s)
+			errChan <- http.ListenAndServe(":"+cfg.Port, n)
+		}
+	}()
+
+	return <-errChan
 }

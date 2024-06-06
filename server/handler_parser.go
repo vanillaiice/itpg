@@ -24,10 +24,10 @@ type Handler struct {
 
 // HandlerInfo represents a struct containing information about an HTTP handler.
 type HandlerInfo struct {
-	Path     string                                   // Path specifies the URL pattern for which the handler is responsible.
-	Handler  func(http.ResponseWriter, *http.Request) // Handler is the function that will be called to handle HTTP requests.
-	Method   string                                   // Method specifies the HTTP method associated with the handler.
-	PathType PathType                                 // PathType is the type of the path (admin, user, public).
+	path     string                                   // Path specifies the URL pattern for which the handler is responsible.
+	handler  func(http.ResponseWriter, *http.Request) // Handler is the function that will be called to handle HTTP requests.
+	method   string                                   // Method specifies the HTTP method associated with the handler.
+	pathType PathType                                 // PathType is the type of the path (admin, user, public).
 	limiter  func(http.Handler) http.Handler          // Limiter is the limiter used to limit requests.
 }
 
@@ -169,10 +169,10 @@ func parseHandlers(reader *bytes.Reader) ([]*HandlerInfo, error) {
 		}
 
 		handlersInfo = append(handlersInfo, &HandlerInfo{
-			Path:     h.Path,
-			Handler:  handlerFunc,
-			Method:   method,
-			PathType: pathType,
+			path:     h.Path,
+			handler:  handlerFunc,
+			method:   method,
+			pathType: pathType,
 			limiter:  limiter,
 		})
 	}

@@ -38,7 +38,7 @@ func initDB(path ...string) (db.DB, error) {
 		path = append(path, ":memory:")
 	}
 
-	db, err := sqlite.New(path[0], context.Background())
+	db, err := sqlite.New(path[0], "", 0, context.Background())
 	if err != nil {
 		return nil, err
 	}

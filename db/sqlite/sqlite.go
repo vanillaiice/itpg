@@ -3,14 +3,15 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	itpgDB "github.com/vanillaiice/itpg/db"
-	"github.com/vanillaiice/itpg/responses"
-
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/vanillaiice/itpg/db"
+	"github.com/vanillaiice/itpg/db/cache"
+	"github.com/vanillaiice/itpg/responses"
 	"github.com/zeebo/xxh3"
 )
 
@@ -23,14 +24,18 @@ const roundPrecision = 2
 // defaultHash is the hash value used when adding course to a professor
 const defaultHash = ""
 
+// defaultCacheTtl is the default cache TTL.
+var defaultCacheTtl time.Duration
+
 // DB is a struct contaning a SQL database connection
 type DB struct {
-	conn *sql.DB
-	ctx  context.Context
+	conn  *sql.DB         // conn is the sqlite database connection.
+	cache *cache.Cache    // cache is the cache database connection.
+	ctx   context.Context // ctx is the context for database connections.
 }
 
 // New initializes a new database connection and sets up the necessary tables if they don't exist.
-func New(url string, ctx context.Context) (db *DB, err error) {
+func New(url, cacheUrl string, cacheTtl time.Duration, ctx context.Context) (db *DB, err error) {
 	var conn *sql.DB
 
 	conn, err = sql.Open("sqlite", url)
@@ -90,23 +95,31 @@ func New(url string, ctx context.Context) (db *DB, err error) {
 
 	db = &DB{conn: conn, ctx: ctx}
 
+	if cacheUrl != "" {
+		db.cache, err = cache.New(cacheUrl, ctx)
+		if err != nil {
+			return nil, err
+		}
+		defaultCacheTtl = cacheTtl
+	}
+
 	return
 }
 
 // Close closes the database connection.
-func (db *DB) Close() error {
-	return db.conn.Close()
+func (d *DB) Close() error {
+	return d.conn.Close()
 }
 
 // AddCourse adds a new course to the database.
-func (db *DB) AddCourse(course *itpgDB.Course) (err error) {
+func (d *DB) AddCourse(course *db.Course) (err error) {
 	stmt := "INSERT INTO Courses(code, name, inserted_at) VALUES(?, ?, ?)"
-	return execStmtContext(db.conn, db.ctx, stmt, course.Code, course.Name, time.Now().UnixNano())
+	return execStmtContext(d.conn, d.ctx, stmt, course.Code, course.Name, time.Now().UnixNano())
 }
 
 // AddCourseMany adds new courses to the database.
-func (db *DB) AddCourseMany(courses []*itpgDB.Course) (err error) {
-	stmt, err := db.conn.PrepareContext(db.ctx, "INSERT INTO Courses(code, name, inserted_at) VALUES(?, ?, ?)")
+func (d *DB) AddCourseMany(courses []*db.Course) (err error) {
+	stmt, err := d.conn.PrepareContext(d.ctx, "INSERT INTO Courses(code, name, inserted_at) VALUES(?, ?, ?)")
 	if err != nil {
 		return
 	}
@@ -122,18 +135,18 @@ func (db *DB) AddCourseMany(courses []*itpgDB.Course) (err error) {
 }
 
 // AddProfessor adds a new professor to the database.
-func (db *DB) AddProfessor(name string) (err error) {
+func (d *DB) AddProfessor(name string) (err error) {
 	professorUUID, err := uuid.NewV4()
 	if err != nil {
 		return
 	}
 	stmt := "INSERT INTO Professors(uuid, name, inserted_at) VALUES(?, ?, ?)"
-	return execStmtContext(db.conn, db.ctx, stmt, professorUUID, name, time.Now().UnixNano())
+	return execStmtContext(d.conn, d.ctx, stmt, professorUUID, name, time.Now().UnixNano())
 }
 
 // AddProfessorMany adds new professors to the database.
-func (db *DB) AddProfessorMany(names []string) (err error) {
-	stmt, err := db.conn.PrepareContext(db.ctx, "INSERT INTO Professors(uuid, name, inserted_at) VALUES(?, ?, ?)")
+func (d *DB) AddProfessorMany(names []string) (err error) {
+	stmt, err := d.conn.PrepareContext(d.ctx, "INSERT INTO Professors(uuid, name, inserted_at) VALUES(?, ?, ?)")
 	if err != nil {
 		return
 	}
@@ -154,18 +167,18 @@ func (db *DB) AddProfessorMany(names []string) (err error) {
 }
 
 // AddCourseProfessor adds a course to a professor in the database.
-func (db *DB) AddCourseProfessor(professorUUID, courseCode string) (err error) {
+func (d *DB) AddCourseProfessor(professorUUID, courseCode string) (err error) {
 	stmt := "INSERT INTO Scores(hash, professor_uuid, course_code) VALUES(?, ?, ?)"
-	return execStmtContext(db.conn, db.ctx, stmt, defaultHash, professorUUID, courseCode)
+	return execStmtContext(d.conn, d.ctx, stmt, defaultHash, professorUUID, courseCode)
 }
 
 // AddCourseProfessorMany adds courses to professors in the database.
-func (db *DB) AddCourseProfessorMany(professorUUIDS, courseCodes []string) (err error) {
+func (d *DB) AddCourseProfessorMany(professorUUIDS, courseCodes []string) (err error) {
 	if len(professorUUIDS) != len(courseCodes) {
 		return fmt.Errorf("unequal slice length")
 	}
 
-	stmt, err := db.conn.PrepareContext(db.ctx, "INSERT INTO Scores(hash, professor_uuid, course_code) VALUES(?, ?, ?)")
+	stmt, err := d.conn.PrepareContext(d.ctx, "INSERT INTO Scores(hash, professor_uuid, course_code) VALUES(?, ?, ?)")
 	if err != nil {
 		return
 	}
@@ -181,7 +194,7 @@ func (db *DB) AddCourseProfessorMany(professorUUIDS, courseCodes []string) (err 
 }
 
 // RemoveCourse removes a course from the database. If forceDelete is true, associated scores are also deleted.
-func (db *DB) RemoveCourse(code string, forceDelete bool) (err error) {
+func (d *DB) RemoveCourse(code string, forceDelete bool) (err error) {
 	stmt := []struct {
 		s    string
 		args string
@@ -196,7 +209,7 @@ func (db *DB) RemoveCourse(code string, forceDelete bool) (err error) {
 			continue
 		}
 
-		if err = execStmtContext(db.conn, db.ctx, s.s, s.args); err != nil {
+		if err = execStmtContext(d.conn, d.ctx, s.s, s.args); err != nil {
 			return
 		}
 	}
@@ -205,7 +218,7 @@ func (db *DB) RemoveCourse(code string, forceDelete bool) (err error) {
 }
 
 // RemoveProfessor removes a professor from the database. If forceDelete is true, associated scores are also deleted.
-func (db *DB) RemoveProfessor(professorUUID string, forceDelete bool) (err error) {
+func (d *DB) RemoveProfessor(professorUUID string, forceDelete bool) (err error) {
 	stmt := []struct {
 		s    string
 		args string
@@ -220,7 +233,7 @@ func (db *DB) RemoveProfessor(professorUUID string, forceDelete bool) (err error
 			continue
 		}
 
-		if err = execStmtContext(db.conn, db.ctx, s.s, s.args); err != nil {
+		if err = execStmtContext(d.conn, d.ctx, s.s, s.args); err != nil {
 			return
 		}
 	}
@@ -229,7 +242,22 @@ func (db *DB) RemoveProfessor(professorUUID string, forceDelete bool) (err error
 }
 
 // GetLastCourses retrieves the last 100 courses from the database.
-func (db *DB) GetLastCourses() (courses []*itpgDB.Course, err error) {
+func (d *DB) GetLastCourses() (courses []*db.Course, err error) {
+	if d.cache != nil {
+		key := "GetLastCourses"
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(courses)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return courses, json.Unmarshal([]byte(cached), &courses)
+		}
+	}
+
 	stmt := `
 		SELECT code, name
 		FROM Courses
@@ -238,14 +266,14 @@ func (db *DB) GetLastCourses() (courses []*itpgDB.Course, err error) {
 		LIMIT ?
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, maxRowReturn)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		course := itpgDB.Course{}
+		course := db.Course{}
 		if err = rows.Scan(&course.Code, &course.Name); err != nil {
 			return
 		}
@@ -256,7 +284,22 @@ func (db *DB) GetLastCourses() (courses []*itpgDB.Course, err error) {
 }
 
 // GetLastProfessors retrieves the last 100 professors from the database.
-func (db *DB) GetLastProfessors() (professors []*itpgDB.Professor, err error) {
+func (d *DB) GetLastProfessors() (professors []*db.Professor, err error) {
+	if d.cache != nil {
+		key := "GetLastProfessors"
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(professors)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return professors, json.Unmarshal([]byte(cached), &professors)
+		}
+	}
+
 	stmt := `
 		SELECT uuid, name
 		FROM Professors
@@ -265,14 +308,14 @@ func (db *DB) GetLastProfessors() (professors []*itpgDB.Professor, err error) {
 		LIMIT ?
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, maxRowReturn)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		professor := itpgDB.Professor{}
+		professor := db.Professor{}
 		if err = rows.Scan(&professor.UUID, &professor.Name); err != nil {
 			return
 		}
@@ -283,7 +326,22 @@ func (db *DB) GetLastProfessors() (professors []*itpgDB.Professor, err error) {
 }
 
 // GetLastScores retrieves the last 100 scores from the database.
-func (db *DB) GetLastScores() (scores []*itpgDB.Score, err error) {
+func (d *DB) GetLastScores() (scores []*db.Score, err error) {
+	if d.cache != nil {
+		key := "GetLastScores"
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(scores)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return scores, json.Unmarshal([]byte(cached), &scores)
+		}
+	}
+
 	stmt := `
 		SELECT 
 			Scores.professor_uuid,
@@ -303,14 +361,14 @@ func (db *DB) GetLastScores() (scores []*itpgDB.Score, err error) {
 		LIMIT ?
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, maxRowReturn)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, maxRowReturn)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		score := itpgDB.Score{}
+		score := db.Score{}
 		if err = rows.Scan(&score.ProfessorUUID, &score.ProfessorName, &score.CourseCode, &score.CourseName, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning); err != nil {
 			return
 		}
@@ -322,7 +380,22 @@ func (db *DB) GetLastScores() (scores []*itpgDB.Score, err error) {
 }
 
 // GetCoursesByProfessor retrieves all courses associated with a professor from the database.
-func (db *DB) GetCoursesByProfessorUUID(UUID string) (courses []*itpgDB.Course, err error) {
+func (d *DB) GetCoursesByProfessorUUID(UUID string) (courses []*db.Course, err error) {
+	if d.cache != nil {
+		key := "GetCoursesByProfessorUUID" + UUID
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(courses)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return courses, json.Unmarshal([]byte(cached), &courses)
+		}
+	}
+
 	stmt := `
 		SELECT code, name
 		FROM Courses
@@ -332,14 +405,14 @@ func (db *DB) GetCoursesByProfessorUUID(UUID string) (courses []*itpgDB.Course, 
 		DESC
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, UUID)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, UUID)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		course := itpgDB.Course{}
+		course := db.Course{}
 		if err = rows.Scan(&course.Code, &course.Name); err != nil {
 			return
 		}
@@ -350,7 +423,22 @@ func (db *DB) GetCoursesByProfessorUUID(UUID string) (courses []*itpgDB.Course, 
 }
 
 // GetProfessorsByCourse retrieves all professors associated with a course from the database.
-func (db *DB) GetProfessorsByCourseCode(code string) (professors []*itpgDB.Professor, err error) {
+func (d *DB) GetProfessorsByCourseCode(code string) (professors []*db.Professor, err error) {
+	if d.cache != nil {
+		key := "GetProfessorsByCourseCode" + code
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(professors)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return professors, json.Unmarshal([]byte(cached), &professors)
+		}
+	}
+
 	stmt := `
 		SELECT uuid, name
 		FROM Professors
@@ -360,14 +448,14 @@ func (db *DB) GetProfessorsByCourseCode(code string) (professors []*itpgDB.Profe
 		DESC
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, code)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, code)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		professor := itpgDB.Professor{}
+		professor := db.Professor{}
 		if err = rows.Scan(&professor.UUID, &professor.Name); err != nil {
 			return
 		}
@@ -378,14 +466,27 @@ func (db *DB) GetProfessorsByCourseCode(code string) (professors []*itpgDB.Profe
 }
 
 // GetProfessorUUIDByName retrieves the UUID of the professor that matches the specified name.
-func (db *DB) GetProfessorUUIDByName(name string) (uuid string, err error) {
+func (d *DB) GetProfessorUUIDByName(name string) (uuid string, err error) {
+	if d.cache != nil {
+		key := "GetProfessorUUIDByName" + name
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				d.cache.Set(key, uuid, defaultCacheTtl)
+			}()
+		} else if err == nil {
+			return cached, nil
+		}
+	}
+
 	stmt := `
 		SELECT uuid
 		FROM Professors
 		WHERE name = ?
+		LIMIT 1
 	`
 
-	row := db.conn.QueryRowContext(db.ctx, stmt, name)
+	row := d.conn.QueryRowContext(d.ctx, stmt, name)
 	if err = row.Scan(&uuid); err != nil {
 		return
 	}
@@ -393,7 +494,22 @@ func (db *DB) GetProfessorUUIDByName(name string) (uuid string, err error) {
 }
 
 // GetScoresByProfessorUUID retrieves all scores associated with a professor's UUID from the database.
-func (db *DB) GetScoresByProfessorUUID(UUID string) (scores []*itpgDB.Score, err error) {
+func (d *DB) GetScoresByProfessorUUID(UUID string) (scores []*db.Score, err error) {
+	if d.cache != nil {
+		key := "GetScoresByProfessorUUID" + UUID
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(scores)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return scores, json.Unmarshal([]byte(cached), &scores)
+		}
+	}
+
 	stmt := `
 		SELECT 
 			Professors.name,
@@ -413,14 +529,14 @@ func (db *DB) GetScoresByProfessorUUID(UUID string) (scores []*itpgDB.Score, err
 		DESC
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, UUID)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, UUID)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		score := itpgDB.Score{}
+		score := db.Score{}
 		if err = rows.Scan(&score.ProfessorName, &score.CourseCode, &score.CourseName, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning); err != nil {
 			return
 		}
@@ -433,7 +549,22 @@ func (db *DB) GetScoresByProfessorUUID(UUID string) (scores []*itpgDB.Score, err
 }
 
 // GetScoresByProfessorName retrieves all scores associated with a professor's name from the database.
-func (db *DB) GetScoresByProfessorName(name string) (scores []*itpgDB.Score, err error) {
+func (d *DB) GetScoresByProfessorName(name string) (scores []*db.Score, err error) {
+	if d.cache != nil {
+		key := "GetScoresByProfessorName" + name
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(scores)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return scores, json.Unmarshal([]byte(cached), &scores)
+		}
+	}
+
 	stmt := `
 		SELECT 
 			Scores.course_code,
@@ -452,14 +583,14 @@ func (db *DB) GetScoresByProfessorName(name string) (scores []*itpgDB.Score, err
 		DESC
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, name)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, name)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		score := itpgDB.Score{}
+		score := db.Score{}
 		if err = rows.Scan(&score.CourseCode, &score.CourseName, &score.ProfessorUUID, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning); err != nil {
 			return
 		}
@@ -472,7 +603,22 @@ func (db *DB) GetScoresByProfessorName(name string) (scores []*itpgDB.Score, err
 }
 
 // GetScoresByProfessorNameLike retrieves the last 100 scores for courses taught by professors whose names contain the given search string.
-func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*itpgDB.Score, err error) {
+func (d *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*db.Score, err error) {
+	if d.cache != nil {
+		key := "GetScoresByProfessorNameLike" + nameLike
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(scores)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return scores, json.Unmarshal([]byte(cached), &scores)
+		}
+	}
+
 	stmt := `
 		SELECT 
 			Professors.name,
@@ -494,14 +640,14 @@ func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*itpgDB.Sc
 		LIMIT ?
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, fmt.Sprintf("%%%s%%", nameLike), maxRowReturn)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, fmt.Sprintf("%%%s%%", nameLike), maxRowReturn)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		score := itpgDB.Score{}
+		score := db.Score{}
 		if err = rows.Scan(&score.ProfessorName, &score.CourseCode, &score.CourseName, &score.ProfessorUUID, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning); err != nil {
 			return
 		}
@@ -513,7 +659,22 @@ func (db *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*itpgDB.Sc
 }
 
 // GetScoresByCourseName retrieves all scores associated with a course from the database.
-func (db *DB) GetScoresByCourseName(name string) (scores []*itpgDB.Score, err error) {
+func (d *DB) GetScoresByCourseName(name string) (scores []*db.Score, err error) {
+	if d.cache != nil {
+		key := "GetScoresByCourseName" + name
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(scores)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return scores, json.Unmarshal([]byte(cached), &scores)
+		}
+	}
+
 	stmt := `
 		SELECT 
 			Professors.name,
@@ -532,14 +693,14 @@ func (db *DB) GetScoresByCourseName(name string) (scores []*itpgDB.Score, err er
 		DESC
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, name)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, name)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		score := itpgDB.Score{}
+		score := db.Score{}
 		if err = rows.Scan(&score.ProfessorName, &score.CourseCode, &score.ProfessorUUID, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning); err != nil {
 			return
 		}
@@ -552,7 +713,22 @@ func (db *DB) GetScoresByCourseName(name string) (scores []*itpgDB.Score, err er
 }
 
 // GetScoresByCourseNameLike retrieves the last 100 scores associated with a course code from the database that matches the given search string
-func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*itpgDB.Score, err error) {
+func (d *DB) GetScoresByCourseNameLike(nameLike string) (scores []*db.Score, err error) {
+	if d.cache != nil {
+		key := "GetScoresByCourseNameLike" + nameLike
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(scores)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return scores, json.Unmarshal([]byte(cached), &scores)
+		}
+	}
+
 	stmt := `
 		SELECT 
 			Professors.name,
@@ -574,14 +750,14 @@ func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*itpgDB.Score
 		LIMIT ?
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, fmt.Sprintf("%%%s%%", nameLike), maxRowReturn)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, fmt.Sprintf("%%%s%%", nameLike), maxRowReturn)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		score := itpgDB.Score{}
+		score := db.Score{}
 		if err = rows.Scan(&score.ProfessorName, &score.CourseCode, &score.CourseName, &score.ProfessorUUID, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning); err != nil {
 			return
 		}
@@ -593,7 +769,22 @@ func (db *DB) GetScoresByCourseNameLike(nameLike string) (scores []*itpgDB.Score
 }
 
 // GetScoresByCourseCode retrieves all scores associated with a course from the database.
-func (db *DB) GetScoresByCourseCode(code string) (scores []*itpgDB.Score, err error) {
+func (d *DB) GetScoresByCourseCode(code string) (scores []*db.Score, err error) {
+	if d.cache != nil {
+		key := "GetScoresByCourseCode" + code
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(scores)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return scores, json.Unmarshal([]byte(cached), &scores)
+		}
+	}
+
 	stmt := `
 		SELECT 
 			Professors.name,
@@ -612,14 +803,14 @@ func (db *DB) GetScoresByCourseCode(code string) (scores []*itpgDB.Score, err er
 		DESC
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, code)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, code)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		score := itpgDB.Score{}
+		score := db.Score{}
 		if err = rows.Scan(&score.ProfessorName, &score.CourseName, &score.ProfessorUUID, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning); err != nil {
 			return
 		}
@@ -632,7 +823,22 @@ func (db *DB) GetScoresByCourseCode(code string) (scores []*itpgDB.Score, err er
 }
 
 // GetScoresByCourseCodeLike retrieves the last 100 scores associated with a course code from the database that matches the given search string
-func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score, err error) {
+func (d *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*db.Score, err error) {
+	if d.cache != nil {
+		key := "GetScoresByCourseCodeLike" + codeLike
+		cached, err := d.cache.Get(key)
+		if err == cache.ErrRedisNil {
+			defer func() {
+				data, err := json.Marshal(scores)
+				if err == nil {
+					d.cache.Set(key, data, defaultCacheTtl)
+				}
+			}()
+		} else if err == nil {
+			return scores, json.Unmarshal([]byte(cached), &scores)
+		}
+	}
+
 	stmt := `
 		SELECT 
 			Professors.name,
@@ -654,14 +860,14 @@ func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score
 		LIMIT ?
 	`
 
-	rows, err := db.conn.QueryContext(db.ctx, stmt, fmt.Sprintf("%%%s%%", codeLike), maxRowReturn)
+	rows, err := d.conn.QueryContext(d.ctx, stmt, fmt.Sprintf("%%%s%%", codeLike), maxRowReturn)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		score := itpgDB.Score{}
+		score := db.Score{}
 		if err = rows.Scan(&score.ProfessorName, &score.CourseCode, &score.CourseName, &score.ProfessorUUID, &score.ScoreTeaching, &score.ScoreCourseWork, &score.ScoreLearning); err != nil {
 			return
 		}
@@ -673,12 +879,12 @@ func (db *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*itpgDB.Score
 }
 
 // GradeCourseProfessor updates the scores of a professor for a specific course in the database.
-func (db *DB) GradeCourseProfessor(professorUUID, courseCode, username string, grades [3]float32) (err error) {
+func (d *DB) GradeCourseProfessor(professorUUID, courseCode, username string, grades [3]float32) (err error) {
 	var Hasher = xxh3.New()
 	Hasher.WriteString(username + courseCode + professorUUID)
 	hash := Hasher.Sum64()
 
-	if graded, err := db.checkGraded(hash); err != nil {
+	if graded, err := d.checkGraded(hash); err != nil {
 		return err
 	} else {
 		if graded {
@@ -699,18 +905,18 @@ func (db *DB) GradeCourseProfessor(professorUUID, courseCode, username string, g
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
-	return execStmtContext(db.conn, db.ctx, stmt, fmt.Sprintf("%d", hash), professorUUID, courseCode, grades[0], grades[1], grades[2], time.Now().UnixNano())
+	return execStmtContext(d.conn, d.ctx, stmt, fmt.Sprintf("%d", hash), professorUUID, courseCode, grades[0], grades[1], grades[2], time.Now().UnixNano())
 }
 
 // CheckGraded checks if a user graded a course.
 // The hash parameter is obtained by hashing
 // the concatenation of the username, course code,
 // and professor uuid using the xxh3 algorithm.
-func (db *DB) checkGraded(hash uint64) (graded bool, err error) {
+func (d *DB) checkGraded(hash uint64) (graded bool, err error) {
 	var count int
 
 	stmt := "SELECT COUNT(*) FROM Scores WHERE hash = ?"
-	if err = db.conn.QueryRowContext(db.ctx, stmt, fmt.Sprintf("%d", hash)).Scan(&count); err != nil {
+	if err = d.conn.QueryRowContext(d.ctx, stmt, fmt.Sprintf("%d", hash)).Scan(&count); err != nil {
 		return
 	}
 

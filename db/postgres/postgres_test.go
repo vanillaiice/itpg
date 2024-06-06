@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 
 	pool.MaxWait = 120 * time.Second
 	if err = pool.Retry(func() error {
-		TestDB, err = New(TestDBUrl, context.Background())
+		TestDB, err = New(TestDBUrl, "", 0, context.Background())
 		return err
 	}); err != nil {
 		log.Fatal(err)
@@ -98,7 +98,7 @@ func initDB() (err error) {
 		return
 	}
 
-	TestDB, err = New(TestDBUrl, context.Background())
+	TestDB, err = New(TestDBUrl, "", 0, context.Background())
 	if err != nil {
 		return
 	}
@@ -139,7 +139,7 @@ func initDB() (err error) {
 }
 
 func TestNew(t *testing.T) {
-	db, err := New(TestDBUrl, context.Background())
+	db, err := New(TestDBUrl, "", 0, context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

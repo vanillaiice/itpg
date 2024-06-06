@@ -10,7 +10,7 @@ import (
 )
 
 // version is the current version.
-const version = "v0.5.0"
+const version = "v0.6.0"
 
 func Exec() {
 	app := &cli.App{
@@ -54,6 +54,22 @@ func Exec() {
 			),
 			altsrc.NewStringFlag(
 				&cli.StringFlag{
+					Name:    "cache-db",
+					Aliases: []string{"C"},
+					Usage:   "cache redis database connection `URL`",
+					Value:   "",
+				},
+			),
+			altsrc.NewIntFlag(
+				&cli.IntFlag{
+					Name:    "cache-ttl",
+					Aliases: []string{"T"},
+					Usage:   "cache time-to-live in seconds",
+					Value:   10,
+				},
+			),
+			altsrc.NewStringFlag(
+				&cli.StringFlag{
 					Name:    "log-level",
 					Aliases: []string{"g"},
 					Usage:   "log level",
@@ -68,7 +84,6 @@ func Exec() {
 					Value:   30,
 				},
 			),
-
 			altsrc.NewPathFlag(
 				&cli.PathFlag{
 					Name:    "env",
@@ -170,19 +185,21 @@ func Exec() {
 		},
 		Action: func(ctx *cli.Context) error {
 			return server.Run(
-				&server.RunConfig{
+				&server.RunCfg{
 					Port:                    ctx.String("port"),
-					DbURL:                   ctx.String("db"),
+					DbUrl:                   ctx.String("db"),
 					DbBackend:               server.DatabaseBackend(ctx.String("db-backend")),
-					UsersDBPath:             ctx.Path("users-db"),
+					UsersDbPath:             ctx.Path("users-db"),
+					CacheUrl:                ctx.String("cache-db"),
+					CacheTtl:                ctx.Int("cache-ttl"),
 					LogLevel:                server.LogLevel(ctx.String("log-level")),
 					CookieTimeout:           ctx.Int("cookie-timeout"),
-					SMTPEnvPath:             ctx.Path("env"),
+					SmtpEnvPath:             ctx.Path("env"),
 					PasswordResetWebsiteURL: ctx.String("pass-reset-url"),
 					AllowedOrigins:          ctx.StringSlice("allowed-origins"),
 					AllowedMailDomains:      ctx.StringSlice("allowed-mail-domains"),
-					UseSMTP:                 ctx.Bool("smtp"),
-					UseHTTP:                 ctx.Bool("http"),
+					UseSmtp:                 ctx.Bool("smtp"),
+					UseHttp:                 ctx.Bool("http"),
 					CertFilePath:            ctx.Path("cert-file"),
 					KeyFilePath:             ctx.Path("key-file"),
 					CodeValidityMinute:      ctx.Int("code-validity-min"),
