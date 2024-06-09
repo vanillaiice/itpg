@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -31,6 +33,7 @@ type DatabaseBackend string
 const (
 	sqliteBackend   DatabaseBackend = "sqlite"
 	postgresBackend DatabaseBackend = "postgres"
+	pgBackend       DatabaseBackend = "pg"
 )
 
 // LogLevel is the log level to use.
@@ -46,7 +49,7 @@ var logLevelMap = map[string]zerolog.Level{
 	"fatal":    zerolog.FatalLevel,
 }
 
-// mailer is the SMTP client used to send mail.
+// mailer is the client used to send mail.
 var mailer *mail.SmtpClient
 
 // dataDb represents a database connection,
@@ -72,7 +75,7 @@ var cookieTimeout time.Duration
 // logger is the logger used by the server.
 var logger = log.Logger
 
-// RunCfg defines the server's confiuration.
+// RunCfg defines the server's configuration.
 type RunCfg struct {
 	Port                    string          // Port on which the server will run.
 	DbUrl                   string          // Path to the SQLite database file.
@@ -121,7 +124,7 @@ func Run(cfg *RunCfg) (err error) {
 	switch cfg.DbBackend {
 	case sqliteBackend:
 		dataDb, err = sqlite.New(cfg.DbUrl, cfg.CacheUrl, cacheTtl, ctx)
-	case postgresBackend:
+	case postgresBackend, pgBackend:
 		dataDb, err = postgres.New(cfg.DbUrl, cfg.CacheUrl, cacheTtl, ctx)
 	default:
 		return fmt.Errorf("invalid database backend: %s", cfg.DbBackend)
@@ -133,14 +136,79 @@ func Run(cfg *RunCfg) (err error) {
 
 	defer dataDb.Close()
 
+	var initUsersDbAdmin bool
+	if _, err := os.Stat(cfg.UsersDbPath); errors.Is(err, os.ErrNotExist) {
+		initUsersDbAdmin = true
+	}
+
 	perm, err := permissionbolt.NewWithConf(cfg.UsersDbPath)
 	if err != nil {
 		return
 	}
+
 	perm.SetDenyFunction(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		responses.ErrPermissionDenied.WriteJSON(w)
 	})
+
+	userState = perm.UserState()
+
+	if initUsersDbAdmin {
+		logger.Info().Msgf("Initializing users database %s", cfg.UsersDbPath)
+
+		if err = godotenv.Load(); err != nil {
+			return
+		}
+
+		var adminUsername, adminPassword, adminEmail string
+
+		if os.Getenv("ADMIN_USERNAME") != "" {
+			adminUsername = os.Getenv("ADMIN_USERNAME")
+		} else {
+			fmt.Println("enter admin username:")
+			if _, err = fmt.Scanln(&adminUsername); err != nil {
+				removeUsersDb(cfg.UsersDbPath)
+				return
+			}
+		}
+
+		if os.Getenv("ADMIN_PASSWORD") != "" {
+			adminPassword = os.Getenv("ADMIN_PASSWORD")
+		} else {
+			fmt.Println("enter admin password:")
+			if _, err = fmt.Scanln(&adminPassword); err != nil {
+				removeUsersDb(cfg.UsersDbPath)
+				return
+			}
+		}
+
+		if os.Getenv("ADMIN_EMAIL") != "" {
+			adminEmail = os.Getenv("ADMIN_EMAIL")
+		} else {
+			fmt.Println("enter admin email:")
+			if _, err = fmt.Scanln(&adminEmail); err != nil {
+				removeUsersDb(cfg.UsersDbPath)
+				return
+			}
+		}
+
+		if err = permissionbolt.ValidUsernamePassword(adminUsername, adminPassword); err != nil {
+			removeUsersDb(cfg.UsersDbPath)
+			return
+		}
+
+		userState.AddUser(adminUsername, adminPassword, adminEmail)
+
+		userState.SetAdminStatus(adminUsername)
+
+		userState.SetBooleanField(adminUsername, "super", true)
+
+		logger.Info().Msgf("Initialized users database %s with super admin %s", cfg.UsersDbPath, adminUsername)
+	}
+
+	cookieTimeout = time.Minute * time.Duration(cfg.CookieTimeout)
+
+	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
 
 	if cfg.CodeLength > 32 || cfg.CodeLength < 8 {
 		return fmt.Errorf("invalid code length: %d (should be between 8 and 32)", cfg.CodeLength)
@@ -156,12 +224,6 @@ func Run(cfg *RunCfg) (err error) {
 		return fmt.Errorf("invalid code validity: %d (should be greater than 0)", cfg.CodeValidityMinute)
 	}
 	confirmationCodeValidityTime = time.Minute * time.Duration(cfg.CodeValidityMinute)
-
-	userState = perm.UserState()
-
-	cookieTimeout = time.Minute * time.Duration(cfg.CookieTimeout)
-
-	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
 
 	router := mux.NewRouter()
 
@@ -205,13 +267,6 @@ func Run(cfg *RunCfg) (err error) {
 	n.Use(perm)
 	n.UseHandler(router)
 
-	s := fmt.Sprintf("itpg-backend (%s) listening on port %s", cfg.DbBackend, cfg.Port)
-	if !cfg.UseSmtp {
-		s += " with SMTPS,"
-	} else {
-		s += " with SMTP,"
-	}
-
 	sigChan := make(chan os.Signal, 1)
 	errChan := make(chan error)
 
@@ -221,6 +276,13 @@ func Run(cfg *RunCfg) (err error) {
 		sig := <-sigChan
 		errChan <- fmt.Errorf("%v signal received, shutting down", sig)
 	}()
+
+	s := fmt.Sprintf("itpg-backend (%s) listening on port %s", cfg.DbBackend, cfg.Port)
+	if !cfg.UseSmtp {
+		s += " with SMTPS,"
+	} else {
+		s += " with SMTP,"
+	}
 
 	go func() {
 		if !cfg.UseHttp {
@@ -233,4 +295,10 @@ func Run(cfg *RunCfg) (err error) {
 	}()
 
 	return <-errChan
+}
+
+func removeUsersDb(path string) {
+	if err := os.Remove(path); err != nil {
+		panic(err)
+	}
 }

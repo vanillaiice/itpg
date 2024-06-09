@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -13,6 +14,7 @@ import (
 	"github.com/vanillaiice/itpg/db/cache"
 	"github.com/vanillaiice/itpg/responses"
 	"github.com/zeebo/xxh3"
+	_ "modernc.org/sqlite"
 )
 
 // maxRowReturn represents the maximum number of rows returned by a query
@@ -258,7 +260,9 @@ func (d *DB) GetLastCourses() (courses []*db.Course, err error) {
 			defer func() {
 				data, err := json.Marshal(courses)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -300,7 +304,9 @@ func (d *DB) GetLastProfessors() (professors []*db.Professor, err error) {
 			defer func() {
 				data, err := json.Marshal(professors)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -342,7 +348,9 @@ func (d *DB) GetLastScores() (scores []*db.Score, err error) {
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -396,7 +404,9 @@ func (d *DB) GetCoursesByProfessorUUID(UUID string) (courses []*db.Course, err e
 			defer func() {
 				data, err := json.Marshal(courses)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -439,7 +449,9 @@ func (d *DB) GetProfessorsByCourseCode(code string) (professors []*db.Professor,
 			defer func() {
 				data, err := json.Marshal(professors)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -480,7 +492,9 @@ func (d *DB) GetProfessorUUIDByName(name string) (uuid string, err error) {
 		cached, err := d.cache.Get(key)
 		if err == cache.ErrRedisNil {
 			defer func() {
-				d.cache.Set(key, uuid, defaultCacheTtl)
+				if err = d.cache.Set(key, uuid, defaultCacheTtl); err != nil {
+					log.Println(err)
+				}
 			}()
 		} else if err == nil {
 			return cached, nil
@@ -510,7 +524,9 @@ func (d *DB) GetScoresByProfessorUUID(UUID string) (scores []*db.Score, err erro
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -565,7 +581,9 @@ func (d *DB) GetScoresByProfessorName(name string) (scores []*db.Score, err erro
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -619,7 +637,9 @@ func (d *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*db.Score, 
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -675,7 +695,9 @@ func (d *DB) GetScoresByCourseName(name string) (scores []*db.Score, err error) 
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -729,7 +751,9 @@ func (d *DB) GetScoresByCourseNameLike(nameLike string) (scores []*db.Score, err
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -785,7 +809,9 @@ func (d *DB) GetScoresByCourseCode(code string) (scores []*db.Score, err error) 
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -839,7 +865,9 @@ func (d *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*db.Score, err
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					d.cache.Set(key, data, defaultCacheTtl)
+					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
+						log.Println(err)
+					}
 				}
 			}()
 		} else if err == nil {
@@ -889,7 +917,9 @@ func (d *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*db.Score, err
 // GradeCourseProfessor updates the scores of a professor for a specific course in the database.
 func (d *DB) GradeCourseProfessor(professorUUID, courseCode, username string, grades [3]float32) (err error) {
 	var Hasher = xxh3.New()
-	Hasher.WriteString(username + courseCode + professorUUID)
+	if _, err = Hasher.WriteString(username + courseCode + professorUUID); err != nil {
+		return
+	}
 	hash := Hasher.Sum64()
 
 	if graded, err := d.checkGraded(hash); err != nil {

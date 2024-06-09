@@ -21,7 +21,7 @@ func (r *Response) Error() string {
 
 // WriteJSON writes a response to the specified writer
 func (r *Response) WriteJSON(w io.Writer) {
-	w.Write([]byte(r.Error()))
+	w.Write([]byte(r.Error())) //nolint:errcheck
 }
 
 // NewResponse creates a new Response with the given code and message.

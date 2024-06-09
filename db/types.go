@@ -1,9 +1,5 @@
 package db
 
-import (
-	_ "modernc.org/sqlite"
-)
-
 // DB is the database interface.
 type DB interface {
 	Close() error
@@ -50,7 +46,7 @@ type Score struct {
 	CourseCode      string  `json:"courseCode"`      // Code of the course
 	CourseName      string  `json:"courseName"`      // Name of the course
 	ScoreTeaching   float32 `json:"scoreTeaching"`   // Score related to the Teaching style/method of the professor
-	ScoreCourseWork float32 `json:"scoreCoursework"` // Score related to the homeworks, quizes, and exams given by the professor
+	ScoreCourseWork float32 `json:"scoreCoursework"` // Score related to the homeworks, quizzes, and exams given by the professor
 	ScoreLearning   float32 `json:"scoreLearning"`   // Score related to the learning outcomes of the course
 	ScoreAverage    float32 `json:"scoreAverage"`    // Average score of the teaching, coursework, and learning scores
 	Count           int     `json:"count"`           // Numbero of students who graded this course

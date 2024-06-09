@@ -8,9 +8,12 @@ import (
 	"github.com/vanillaiice/itpg/responses"
 )
 
+// contextKey is the type for the context key.
+type contextKey string
+
 // usernameContextKey is the key in the request's context to set
 // the username for use in subsequent middleware.
-const usernameContextKey = "username"
+const usernameContextKey contextKey = "username"
 
 // cookieExpiryuserStateKey is the key in the Userstate database
 // use to retrieve the expiry time of a session cookie.

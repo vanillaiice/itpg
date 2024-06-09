@@ -152,22 +152,22 @@ func TestAddCourse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = TestDB.AddCourse(&itpgDB.Course{"FC3S", "How to BRAPPPPPP"})
+	err = TestDB.AddCourse(&itpgDB.Course{Code: "FC3S", Name: "How to BRAPPPPPP"})
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = TestDB.AddCourse(&itpgDB.Course{"FC3S", "How to BRAPPPPPP"})
+	err = TestDB.AddCourse(&itpgDB.Course{Code: "FC3S", Name: "How to BRAPPPPPP"})
 	if err == nil {
 		t.Error("expected failure")
 	}
 
-	err = TestDB.AddCourse(&itpgDB.Course{"FD3S", ""})
+	err = TestDB.AddCourse(&itpgDB.Course{Code: "FD3S", Name: ""})
 	if err == nil {
 		t.Error("expected failure")
 	}
 
-	err = TestDB.AddCourse(&itpgDB.Course{"", "How to BRAPPPPPP (second edition)"})
+	err = TestDB.AddCourse(&itpgDB.Course{Code: "", Name: "How to BRAPPPPPP (second edition)"})
 	if err == nil {
 		t.Error("expected failure")
 	}
@@ -180,9 +180,9 @@ func TestAddCourseMany(t *testing.T) {
 	}
 
 	cs := []*itpgDB.Course{
-		{"FC3S", "How to BRAPPPPPP"},
-		{"AP1", "One Hand Driving 101"},
-		{"EK9", "Art of VTEC"},
+		{Code: "FC3S", Name: "How to BRAPPPPPP"},
+		{Code: "AP1", Name: "One Hand Driving 101"},
+		{Code: "EK9", Name: "Art of VTEC"},
 	}
 
 	err = TestDB.AddCourseMany(cs)
@@ -616,7 +616,9 @@ func TestCheckGraded(t *testing.T) {
 	}
 
 	hasher := xxh3.New()
-	hasher.WriteString("joe" + courses[0].Code + professors[0].UUID)
+	if _, err := hasher.WriteString("joe" + courses[0].Code + professors[0].UUID); err != nil {
+		t.Fatal(err)
+	}
 	hash := hasher.Sum64()
 
 	graded, err := TestDB.checkGraded(hash)

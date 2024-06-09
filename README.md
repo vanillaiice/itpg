@@ -1,6 +1,4 @@
-# Is This Professor Good ? - Backend (itpg-backend)
-
-[![Go Reference](https://pkg.go.dev/badge/golang.org/x/example.svg)](https://pkg.go.dev/github.com/vanillaiice/itpg)
+# Is This Professor Good ? - Backend (itpg-backend) [![Go Reference](https://pkg.go.dev/badge/golang.org/x/example.svg)](https://pkg.go.dev/github.com/vanillaiice/itpg) [![Go Report Card](https://goreportcard.com/badge/github.com/vanillaiice/itpg)](https://goreportcard.com/report/github.com/vanillaiice/itpg)
 
 Backend server for itpg, which is a platform where students can grade their professors after taking courses.
 This permits future students to make more informed decisions when choosing their courses.
@@ -27,16 +25,18 @@ NAME:
    itpg-backend - Backend server for ITPG, handles database transactions and user state management through HTTP(S) requests.
 
 USAGE:
-   itpg-backend [global options] command [command options]
+   itpg-backend [global options] command [command options] 
 
 VERSION:
-   v0.6.1
+   v0.6.2
 
 AUTHOR:
    vanillaiice <vanillaiice1@proton.me>
 
 COMMANDS:
-   help, h  Shows a list of commands or help for one command
+   run, r    run itpg server
+   admin, a  admin management
+   help, h   Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --port PORT, -p PORT                                                               listen on PORT (default: "443")

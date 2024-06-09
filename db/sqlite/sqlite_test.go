@@ -89,22 +89,22 @@ func TestAddCourse(t *testing.T) {
 	}
 	defer db.Close()
 
-	err = db.AddCourse(&itpgDB.Course{"FC3S", "How to BRAPPPPPP"})
+	err = db.AddCourse(&itpgDB.Course{Code: "FC3S", Name: "How to BRAPPPPPP"})
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = db.AddCourse(&itpgDB.Course{"FC3S", "How to BRAPPPPPP"})
+	err = db.AddCourse(&itpgDB.Course{Code: "FC3S", Name: "How to BRAPPPPPP"})
 	if err == nil {
 		t.Error("expected failure")
 	}
 
-	err = db.AddCourse(&itpgDB.Course{"FD3S", ""})
+	err = db.AddCourse(&itpgDB.Course{Code: "FD3S", Name: ""})
 	if err == nil {
 		t.Error("expected failure")
 	}
 
-	err = db.AddCourse(&itpgDB.Course{"", "How to BRAPPPPPP (second edition)"})
+	err = db.AddCourse(&itpgDB.Course{Code: "", Name: "How to BRAPPPPPP (second edition)"})
 	if err == nil {
 		t.Error("expected failure")
 	}
@@ -118,9 +118,9 @@ func TestAddCourseMany(t *testing.T) {
 	defer db.Close()
 
 	cs := []*itpgDB.Course{
-		{"FC3S", "How to BRAPPPPPP"},
-		{"AP1", "One Hand Driving 101"},
-		{"EK9", "Art of VTEC"},
+		{Code: "FC3S", Name: "How to BRAPPPPPP"},
+		{Code: "AP1", Name: "One Hand Driving 101"},
+		{Code: "EK9", Name: "Art of VTEC"},
 	}
 
 	err = db.AddCourseMany(cs)
@@ -576,7 +576,9 @@ func TestCheckGraded(t *testing.T) {
 	defer db.Close()
 
 	hasher := xxh3.New()
-	hasher.WriteString("joe" + courses[0].Code + professors[0].UUID)
+	if _, err = hasher.WriteString("joe" + courses[0].Code + professors[0].UUID); err != nil {
+		t.Fatal(err)
+	}
 	hash := hasher.Sum64()
 
 	graded, err := db.checkGraded(hash)
