@@ -8,7 +8,7 @@ RUN go mod download && go mod verify
 
 COPY . .
 
-RUN go build -ldflags="-s -w" -o /itpg ./cmd/itpg_backend/main.go
+RUN go build -ldflags="-s -w" -o /itpg .
 
 FROM scratch
 
