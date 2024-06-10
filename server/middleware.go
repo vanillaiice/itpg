@@ -8,7 +8,7 @@ import (
 	"github.com/vanillaiice/itpg/responses"
 )
 
-// contextKey is the type for the context key.
+// contextKey is a type for the context key.
 type contextKey string
 
 // usernameContextKey is the key in the request's context to set
@@ -44,7 +44,7 @@ func checkCookieExpiry(username string) error {
 }
 
 // DummyMiddleware is middleware that does nothing.
-// It is used to wrap the go-chi/httprate limiter around a handler
+// It is used to wrap the go-chi/httprate limiter around a handler.
 func DummyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
@@ -97,6 +97,50 @@ func checkConfirmedMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if !userState.IsConfirmed(username) {
 			w.WriteHeader(http.StatusUnauthorized)
 			responses.ErrNotConfirmed.WriteJSON(w)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}
+}
+
+func checkAdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username, ok := r.Context().Value(usernameContextKey).(string)
+		if !ok || username == "" {
+			w.WriteHeader(http.StatusInternalServerError)
+			responses.ErrInternal.WriteJSON(w)
+			return
+		}
+
+		if !userState.IsAdmin(username) {
+			w.WriteHeader(http.StatusUnauthorized)
+			responses.ErrNotAdmin.WriteJSON(w)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}
+}
+
+func checkSuperAdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username, ok := r.Context().Value(usernameContextKey).(string)
+		if !ok || username == "" {
+			w.WriteHeader(http.StatusInternalServerError)
+			responses.ErrInternal.WriteJSON(w)
+			return
+		}
+
+		if !userState.IsAdmin(username) {
+			w.WriteHeader(http.StatusUnauthorized)
+			responses.ErrNotAdmin.WriteJSON(w)
+			return
+		}
+
+		if !userState.BooleanField(username, "super") {
+			w.WriteHeader(http.StatusUnauthorized)
+			responses.ErrNotSuperAdmin.WriteJSON(w)
 			return
 		}
 

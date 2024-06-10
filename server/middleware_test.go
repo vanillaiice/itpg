@@ -204,3 +204,192 @@ func TestCheckConfirmedMiddleware_Confirmed(t *testing.T) {
 		t.Errorf("got %v, want %v", w.Code, http.StatusOK)
 	}
 }
+
+func TestCheckAdminMiddleware_NotAdmin(t *testing.T) {
+	err := initTestUserState()
+	if err != nil {
+		t.Error(err)
+	}
+	defer removeUserState()
+
+	body, _ := json.Marshal(creds)
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+
+	handler := func(w http.ResponseWriter, r *http.Request) {}
+
+	middleware := checkAdminMiddleware(handler)
+
+	w := httptest.NewRecorder()
+
+	userState.AddUser(creds.Email, creds.Password, "")
+	userState.Confirm(creds.Email)
+	if err = userState.Login(w, creds.Email); err != nil {
+		t.Fatal(err)
+	}
+
+	cookie := w.Result().Cookies()[0]
+	c := &http.Cookie{
+		Name:  cookie.Name,
+		Value: cookie.Value,
+	}
+	r.AddCookie(c)
+
+	r = r.WithContext(context.WithValue(r.Context(), usernameContextKey, creds.Email))
+	middleware.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("got %v, want %v", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestCheckAdminMiddleware_Admin(t *testing.T) {
+	err := initTestUserState()
+	if err != nil {
+		t.Error(err)
+	}
+	defer removeUserState()
+
+	body, _ := json.Marshal(creds)
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+
+	handler := func(w http.ResponseWriter, r *http.Request) {}
+
+	middleware := checkAdminMiddleware(handler)
+
+	w := httptest.NewRecorder()
+
+	userState.AddUser(creds.Email, creds.Password, "")
+	userState.Confirm(creds.Email)
+	userState.SetAdminStatus(creds.Email)
+	if err = userState.Login(w, creds.Email); err != nil {
+		t.Fatal(err)
+	}
+
+	cookie := w.Result().Cookies()[0]
+	c := &http.Cookie{
+		Name:  cookie.Name,
+		Value: cookie.Value,
+	}
+	r.AddCookie(c)
+
+	r = r.WithContext(context.WithValue(r.Context(), usernameContextKey, creds.Email))
+	middleware.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("got %v, want %v", w.Code, http.StatusOK)
+	}
+}
+
+func TestCheckSuperAdminMiddleware_User(t *testing.T) {
+	err := initTestUserState()
+	if err != nil {
+		t.Error(err)
+	}
+	defer removeUserState()
+
+	body, _ := json.Marshal(creds)
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+
+	handler := func(w http.ResponseWriter, r *http.Request) {}
+
+	middleware := checkSuperAdminMiddleware(handler)
+
+	w := httptest.NewRecorder()
+
+	userState.AddUser(creds.Email, creds.Password, "")
+	userState.Confirm(creds.Email)
+	if err = userState.Login(w, creds.Email); err != nil {
+		t.Fatal(err)
+	}
+
+	cookie := w.Result().Cookies()[0]
+	c := &http.Cookie{
+		Name:  cookie.Name,
+		Value: cookie.Value,
+	}
+	r.AddCookie(c)
+
+	r = r.WithContext(context.WithValue(r.Context(), usernameContextKey, creds.Email))
+	middleware.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("got %v, want %v", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestCheckSuperAdminMiddleware_Admin(t *testing.T) {
+	err := initTestUserState()
+	if err != nil {
+		t.Error(err)
+	}
+	defer removeUserState()
+
+	body, _ := json.Marshal(creds)
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+
+	handler := func(w http.ResponseWriter, r *http.Request) {}
+
+	middleware := checkSuperAdminMiddleware(handler)
+
+	w := httptest.NewRecorder()
+
+	userState.AddUser(creds.Email, creds.Password, "")
+	userState.Confirm(creds.Email)
+	userState.SetAdminStatus(creds.Email)
+	if err = userState.Login(w, creds.Email); err != nil {
+		t.Fatal(err)
+	}
+
+	cookie := w.Result().Cookies()[0]
+	c := &http.Cookie{
+		Name:  cookie.Name,
+		Value: cookie.Value,
+	}
+	r.AddCookie(c)
+
+	r = r.WithContext(context.WithValue(r.Context(), usernameContextKey, creds.Email))
+	middleware.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("got %v, want %v", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestCheckSuperAdminMiddleware_SuperAdmin(t *testing.T) {
+	err := initTestUserState()
+	if err != nil {
+		t.Error(err)
+	}
+	defer removeUserState()
+
+	body, _ := json.Marshal(creds)
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+
+	handler := func(w http.ResponseWriter, r *http.Request) {}
+
+	middleware := checkSuperAdminMiddleware(handler)
+
+	w := httptest.NewRecorder()
+
+	userState.AddUser(creds.Email, creds.Password, "")
+	userState.Confirm(creds.Email)
+	userState.SetAdminStatus(creds.Email)
+	userState.SetBooleanField(creds.Email, "super", true)
+	if err = userState.Login(w, creds.Email); err != nil {
+		t.Fatal(err)
+	}
+
+	cookie := w.Result().Cookies()[0]
+	c := &http.Cookie{
+		Name:  cookie.Name,
+		Value: cookie.Value,
+	}
+	r.AddCookie(c)
+
+	r = r.WithContext(context.WithValue(r.Context(), usernameContextKey, creds.Email))
+	middleware.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("got %v, want %v", w.Code, http.StatusOK)
+	}
+}

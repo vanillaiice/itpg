@@ -91,6 +91,10 @@ var (
 	ErrWeakPassword = NewResponse(4021, "weak password")
 	// ErrConfirmationCodeExpired indicates that the provided confirmation code is expired.
 	ErrConfirmationCodeExpired = NewResponse(4022, "confirmation code expired")
+	// ErrNotAdmin indicates that the user is not an admin.
+	ErrNotAdmin = NewResponse(4023, "not admin")
+	// ErrNotSuperAdmin indicates that the user is not a super admin.
+	ErrNotSuperAdmin = NewResponse(4024, "not admin")
 )
 
 // Server-side Errors

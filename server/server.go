@@ -239,8 +239,11 @@ func Run(cfg *RunCfg) (err error) {
 
 	for _, h := range handlers {
 		switch h.pathType {
+		case superPath:
+			router.Handle(h.path, h.limiter(checkCookieExpiryMiddleware(checkSuperAdminMiddleware(h.handler)))).Methods(h.method)
+			perm.AddAdminPath(h.path)
 		case adminPath:
-			router.Handle(h.path, h.limiter(checkCookieExpiryMiddleware(h.handler))).Methods(h.method)
+			router.Handle(h.path, h.limiter(checkCookieExpiryMiddleware(checkAdminMiddleware(h.handler)))).Methods(h.method)
 			perm.AddAdminPath(h.path)
 		case userPath:
 			router.Handle(h.path, h.limiter(checkCookieExpiryMiddleware(checkConfirmedMiddleware(h.handler)))).Methods(h.method)

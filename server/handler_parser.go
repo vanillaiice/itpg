@@ -39,6 +39,7 @@ const (
 	userPath   PathType = 0 // UserPath is a path only accessible by users.
 	publicPath PathType = 1 // publicPath is a path accessible by anyone.
 	adminPath  PathType = 2 // adminPath is a path only accessible by admins.
+	superPath  PathType = 3 // superPath is a path only accessible by super admins
 )
 
 // limitHandlerFunc is executed when the request limit is reached.
@@ -89,6 +90,7 @@ var limiterMap = map[string]func(http.Handler) http.Handler{
 
 // pathTypeMap is a map of path types to their names.
 var pathTypeMap = map[string]PathType{
+	"super":  superPath,
 	"admin":  adminPath,
 	"user":   userPath,
 	"public": publicPath,

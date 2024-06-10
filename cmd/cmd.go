@@ -9,7 +9,7 @@ import (
 )
 
 // version is the current version.
-const version = "v0.6.2"
+const version = "v0.6.3"
 
 // Exec starts the cli app.
 func Exec() {
