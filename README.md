@@ -94,33 +94,23 @@ MAIL_FROM = "mailer@example.com"
 
 ## Handlers
 
-This handlers.json file contains the configuration for the server's HTTP endpoints.
+The handlers.json file contains the configuration for the server's HTTP endpoints.
 
 ### Configuring handlers
 
-- `path`
+- `path` is the path of the HTTP endpoint (e.g. `/course/grade`).
 
-The path is the path of the HTTP endpoint (e.g. `/course/grade`).
-
-- `pathType`
-
-The pathType is the type of the path.
+- `pathType` is the type of the path.
 
 Path types include `super`, `admin`, `user`, and `public`.
 
-- `handler`
+- `handler` is the name of the Go function that handles the HTTP request.
 
-The handler is the name of the Go function that handles the HTTP request.
-
-- `limiter`
-
-The limiter is the type of the limiter function that handles the HTTP request.
+- `limiter` is the type of the limiter function that handles the HTTP request.
 
 Limiter types include `lenient` (1000 req/s/ip), `moderate` (1000 req/min/ip), `strict` (500 req/hr/ip), and `veryStrict` (100 req/hr/ip).
 
-- `method`
-
-The method is the HTTP method of the HTTP request.
+- `method` is the HTTP method of the HTTP request.
 
 Methods include `GET`, `POST`, `PUT`, and `DELETE`.
 
@@ -212,7 +202,9 @@ $ caddy run --config Caddyfile
 ```
 
 > note: ports 80 and 443 need to be open for Caddy to generate the certificates.
+
 > source: https://caddyserver.com/docs/quick-starts/reverse-proxy
+
 > source: https://caddyserver.com/docs/automatic-https
 
 ## Seeding the database
@@ -224,7 +216,9 @@ It can easily be done in most programming language that has support for sqlite o
 There is an example in [Go](https://github.com/vanillaiice/itpg-seeder), that uses the [jaswdr/faker](https://github.com/jaswdr/faker) package to seed the database with fake data.
 
 > note: Ideally, we will need to gather data on the institutions where we want to implement itpg.
+
 > The needed data include course codes, names, professor names, and the courses given by professors.
+
 > For more information about the structure of the database, please read the table schemas in the db package.
 
 ## Config
