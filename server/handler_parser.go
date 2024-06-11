@@ -75,7 +75,7 @@ var limiterStrict = httprate.Limit(
 // limiterVeryStrict is a limiter that allows 100 requests per hour per IP.
 var limiterVeryStrict = httprate.Limit(
 	100,
-	1*time.Hour,
+	time.Hour,
 	httprate.WithKeyFuncs(httprate.KeyByIP),
 	limitHandlerFunc,
 )

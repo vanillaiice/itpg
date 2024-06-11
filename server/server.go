@@ -36,7 +36,6 @@ const (
 	pgBackend       DatabaseBackend = "pg"
 )
 
-// LogLevel is the log level to use.
 type LogLevel string
 
 // logLevelMap is the map of log levels.
@@ -60,43 +59,40 @@ var dataDb db.DB
 // userState stores the state of all users.
 var userState pinterface.IUserState
 
-// passwordResetURL is the URL of the password reset web page.
+// passwordResetUrl is the URL of the password reset web page.
 // An example URL would be: https://demo.itpg.cc/changepass.
 // The backend server will then append the following to the previous URL:
 // ?code=foobarbaz, and send it to the user's email.
 // Then, the website should get the email and new password of the user,
 // and make the following example POST request to the api server:
 // curl https://api.itpg.cc/resetpass -d '{"code": "foobarbaz", "email": "foo@bar.com", "password": "fizzbuzz"}'
-var passwordResetWebsiteURL string
+var passwordResetUrl string
 
 // cookieTimeout represents the duration after which a session cookie expires.
 var cookieTimeout time.Duration
 
-// logger is the logger used by the server.
-var logger = log.Logger
-
 // RunCfg defines the server's configuration.
 type RunCfg struct {
-	Port                    string          // Port on which the server will run.
-	DbUrl                   string          // Path to the SQLite database file.
-	DbBackend               DatabaseBackend // Database backend type.
-	CacheUrl                string          // URL to the redis cache database.
-	CacheTtl                int             // Time-to-live of the cache in seconds.
-	LogLevel                LogLevel        // Log level.
-	UsersDbPath             string          // Path to the users BOLT database file.
-	SmtpEnvPath             string          // Path to the .env file containing SMTP cfguration.
-	PasswordResetWebsiteURL string          // URL to the password reset website page.
-	AllowedOrigins          []string        // List of allowed origins for CORS.
-	AllowedMailDomains      []string        // List of allowed mail domains for registering with the service.
-	UseSmtp                 bool            // Whether to use SMTP (false for SMTPS).
-	UseHttp                 bool            // Whether to use HTTP (false for HTTPS).
-	CertFilePath            string          // Path to the certificate file (required for HTTPS).
-	KeyFilePath             string          // Path to the key file (required for HTTPS).
-	CookieTimeout           int             // Duration in minute after which a session cookie expires.
-	CodeValidityMinute      int             // Duration in minute after which a code is invalid.
-	CodeLength              int             // Length of generated codes.
-	MinPasswordScore        int             // Minimum acceptable score of a password scores computed by zxcvbn.
-	HandlerCfg              string          // Handler config json file.
+	Port               string          // Port on which the server will run.
+	DbUrl              string          // Path to the SQLite database file.
+	DbBackend          DatabaseBackend // Database backend type.
+	CacheDbUrl         string          // URL to the redis cache database.
+	CacheTtl           int             // Time-to-live of the cache in seconds.
+	UsersDbPath        string          // Path to the users BOLT database file.
+	AllowedOrigins     []string        // List of allowed origins for CORS.
+	AllowedMailDomains []string        // List of allowed mail domains for registering with the service.
+	PasswordResetUrl   string          // URL to the password reset website page.
+	SmtpEnvPath        string          // Path to the .env file containing SMTP cfguration.
+	UseSmtp            bool            // Whether to use SMTP (false for SMTPS).
+	UseHttp            bool            // Whether to use HTTP (false for HTTPS).
+	HandlersFilePath   string          // Handler config json file.
+	CertFilePath       string          // Path to the certificate file (required for HTTPS).
+	KeyFilePath        string          // Path to the key file (required for HTTPS).
+	CookieTimeout      int             // Duration in minute after which a session cookie expires.
+	CodeValidityMinute int             // Duration in minute after which a code is invalid.
+	CodeLength         int             // Length of generated codes.
+	MinPasswordScore   int             // Minimum acceptable score of a password scores computed by zxcvbn.
+	LogLevel           LogLevel        // Log level.
 }
 
 // Run starts the HTTP server on the specified port and connects to the specified database.
@@ -123,9 +119,9 @@ func Run(cfg *RunCfg) (err error) {
 
 	switch cfg.DbBackend {
 	case sqliteBackend:
-		dataDb, err = sqlite.New(cfg.DbUrl, cfg.CacheUrl, cacheTtl, ctx)
+		dataDb, err = sqlite.New(cfg.DbUrl, cfg.CacheDbUrl, cacheTtl, ctx)
 	case postgresBackend, pgBackend:
-		dataDb, err = postgres.New(cfg.DbUrl, cfg.CacheUrl, cacheTtl, ctx)
+		dataDb, err = postgres.New(cfg.DbUrl, cfg.CacheDbUrl, cacheTtl, ctx)
 	default:
 		return fmt.Errorf("invalid database backend: %s", cfg.DbBackend)
 	}
@@ -154,7 +150,7 @@ func Run(cfg *RunCfg) (err error) {
 	userState = perm.UserState()
 
 	if initUsersDbAdmin {
-		logger.Info().Msgf("Initializing users database %s", cfg.UsersDbPath)
+		log.Info().Msgf("Initializing users database %s", cfg.UsersDbPath)
 
 		if err = godotenv.Load(); err != nil {
 			return
@@ -163,6 +159,7 @@ func Run(cfg *RunCfg) (err error) {
 		var adminUsername, adminPassword, adminEmail string
 
 		if os.Getenv("ADMIN_USERNAME") != "" {
+			log.Debug().Msg("found environment variable ADMIN_USERNAME")
 			adminUsername = os.Getenv("ADMIN_USERNAME")
 		} else {
 			fmt.Println("enter admin username:")
@@ -173,6 +170,7 @@ func Run(cfg *RunCfg) (err error) {
 		}
 
 		if os.Getenv("ADMIN_PASSWORD") != "" {
+			log.Debug().Msg("found environment variable ADMIN_PASSWORD")
 			adminPassword = os.Getenv("ADMIN_PASSWORD")
 		} else {
 			fmt.Println("enter admin password:")
@@ -183,6 +181,7 @@ func Run(cfg *RunCfg) (err error) {
 		}
 
 		if os.Getenv("ADMIN_EMAIL") != "" {
+			log.Debug().Msg("found environment variable ADMIN_EMAIL")
 			adminEmail = os.Getenv("ADMIN_EMAIL")
 		} else {
 			fmt.Println("enter admin email:")
@@ -203,7 +202,7 @@ func Run(cfg *RunCfg) (err error) {
 
 		userState.SetBooleanField(adminUsername, "super", true)
 
-		logger.Info().Msgf("Initialized users database %s with super admin %s", cfg.UsersDbPath, adminUsername)
+		log.Info().Msgf("Initialized users database %s with super admin %s", cfg.UsersDbPath, adminUsername)
 	}
 
 	cookieTimeout = time.Minute * time.Duration(cfg.CookieTimeout)
@@ -227,7 +226,7 @@ func Run(cfg *RunCfg) (err error) {
 
 	router := mux.NewRouter()
 
-	handlerCfg, err := os.ReadFile(cfg.HandlerCfg)
+	handlerCfg, err := os.ReadFile(cfg.HandlersFilePath)
 	if err != nil {
 		return
 	}
@@ -256,7 +255,7 @@ func Run(cfg *RunCfg) (err error) {
 		}
 	}
 
-	passwordResetWebsiteURL = cfg.PasswordResetWebsiteURL
+	passwordResetUrl = cfg.PasswordResetUrl
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   cfg.AllowedOrigins,

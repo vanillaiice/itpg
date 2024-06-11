@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
 	"github.com/vanillaiice/itpg/db"
 	"github.com/vanillaiice/itpg/responses"
 )
@@ -22,14 +23,14 @@ type GradeData struct {
 func addCourse(w http.ResponseWriter, r *http.Request) {
 	courseCode, courseName := r.FormValue("code"), r.FormValue("name")
 	if err := isEmptyStr(w, courseCode, courseName); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := dataDb.AddCourse(&db.Course{Code: courseCode, Name: courseName}); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -41,14 +42,14 @@ func addCourse(w http.ResponseWriter, r *http.Request) {
 func addProfessor(w http.ResponseWriter, r *http.Request) {
 	fullName := r.FormValue("fullname")
 	if err := isEmptyStr(w, fullName); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := dataDb.AddProfessor(fullName); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -60,14 +61,14 @@ func addProfessor(w http.ResponseWriter, r *http.Request) {
 func removeCourse(w http.ResponseWriter, r *http.Request) {
 	courseCode := r.FormValue("code")
 	if err := isEmptyStr(w, courseCode); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := dataDb.RemoveCourse(courseCode, false); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -79,14 +80,14 @@ func removeCourse(w http.ResponseWriter, r *http.Request) {
 func removeCourseForce(w http.ResponseWriter, r *http.Request) {
 	courseCode := r.FormValue("code")
 	if err := isEmptyStr(w, courseCode); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := dataDb.RemoveCourse(courseCode, true); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -98,14 +99,14 @@ func removeCourseForce(w http.ResponseWriter, r *http.Request) {
 func removeProfessor(w http.ResponseWriter, r *http.Request) {
 	professorUUID := r.FormValue("uuid")
 	if err := isEmptyStr(w, professorUUID); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := dataDb.RemoveProfessor(professorUUID, false); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -117,14 +118,14 @@ func removeProfessor(w http.ResponseWriter, r *http.Request) {
 func removeProfessorForce(w http.ResponseWriter, r *http.Request) {
 	professorUUID := r.FormValue("uuid")
 	if err := isEmptyStr(w, professorUUID); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := dataDb.RemoveProfessor(professorUUID, true); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -136,14 +137,14 @@ func removeProfessorForce(w http.ResponseWriter, r *http.Request) {
 func addCourseProfessor(w http.ResponseWriter, r *http.Request) {
 	professorUUID, courseCode := r.FormValue("uuid"), r.FormValue("code")
 	if err := isEmptyStr(w, professorUUID, courseCode); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := dataDb.AddCourseProfessor(professorUUID, courseCode); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -157,7 +158,7 @@ func getLastCourses(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -171,7 +172,7 @@ func getLastProfessors(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -185,7 +186,7 @@ func getLastScores(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -197,7 +198,7 @@ func getLastScores(w http.ResponseWriter, r *http.Request) {
 func getCoursesByProfessorUUID(w http.ResponseWriter, r *http.Request) {
 	professorUUID := mux.Vars(r)["uuid"]
 	if err := isEmptyStr(w, professorUUID); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -205,7 +206,7 @@ func getCoursesByProfessorUUID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -217,7 +218,7 @@ func getCoursesByProfessorUUID(w http.ResponseWriter, r *http.Request) {
 func getProfessorsByCourseCode(w http.ResponseWriter, r *http.Request) {
 	courseCode := mux.Vars(r)["code"]
 	if err := isEmptyStr(w, courseCode); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -225,7 +226,7 @@ func getProfessorsByCourseCode(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -237,7 +238,7 @@ func getProfessorsByCourseCode(w http.ResponseWriter, r *http.Request) {
 func getScoresByProfessorUUID(w http.ResponseWriter, r *http.Request) {
 	professorUUID := mux.Vars(r)["uuid"]
 	if err := isEmptyStr(w, professorUUID); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -245,7 +246,7 @@ func getScoresByProfessorUUID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -257,7 +258,7 @@ func getScoresByProfessorUUID(w http.ResponseWriter, r *http.Request) {
 func getScoresByProfessorName(w http.ResponseWriter, r *http.Request) {
 	professorName := mux.Vars(r)["name"]
 	if err := isEmptyStr(w, professorName); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -265,7 +266,7 @@ func getScoresByProfessorName(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -277,7 +278,7 @@ func getScoresByProfessorName(w http.ResponseWriter, r *http.Request) {
 func getScoresByProfessorNameLike(w http.ResponseWriter, r *http.Request) {
 	professorName := mux.Vars(r)["name"]
 	if err := isEmptyStr(w, professorName); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -285,7 +286,7 @@ func getScoresByProfessorNameLike(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -297,7 +298,7 @@ func getScoresByProfessorNameLike(w http.ResponseWriter, r *http.Request) {
 func getScoresByCourseName(w http.ResponseWriter, r *http.Request) {
 	courseName := mux.Vars(r)["name"]
 	if err := isEmptyStr(w, courseName); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -305,7 +306,7 @@ func getScoresByCourseName(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -317,7 +318,7 @@ func getScoresByCourseName(w http.ResponseWriter, r *http.Request) {
 func getScoresByCourseNameLike(w http.ResponseWriter, r *http.Request) {
 	courseName := mux.Vars(r)["name"]
 	if err := isEmptyStr(w, courseName); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -325,7 +326,7 @@ func getScoresByCourseNameLike(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -337,7 +338,7 @@ func getScoresByCourseNameLike(w http.ResponseWriter, r *http.Request) {
 func getScoresByCourseCode(w http.ResponseWriter, r *http.Request) {
 	courseCode := mux.Vars(r)["code"]
 	if err := isEmptyStr(w, courseCode); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -345,7 +346,7 @@ func getScoresByCourseCode(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -357,7 +358,7 @@ func getScoresByCourseCode(w http.ResponseWriter, r *http.Request) {
 func getScoresByCourseCodeLike(w http.ResponseWriter, r *http.Request) {
 	courseCode := mux.Vars(r)["code"]
 	if err := isEmptyStr(w, courseCode); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -365,7 +366,7 @@ func getScoresByCourseCodeLike(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -384,7 +385,7 @@ func gradeCourseProfessor(w http.ResponseWriter, r *http.Request) {
 
 	gradeData, err := decodeGradeData(w, r)
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -397,7 +398,7 @@ func gradeCourseProfessor(w http.ResponseWriter, r *http.Request) {
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 			responses.ErrInternal.WriteJSON(w)
-			logger.Error().Msg(err.Error())
+			log.Error().Msg(err.Error())
 			return
 		}
 	}

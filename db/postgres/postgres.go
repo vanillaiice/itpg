@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 	"github.com/vanillaiice/itpg/db"
 	"github.com/vanillaiice/itpg/db/cache"
@@ -25,14 +25,12 @@ const roundPrecision = 2
 // defaultHash is the hash value used when adding course to a professor
 const defaultHash = ""
 
-// defaultCacheTtl is the default cache TTL.
-var defaultCacheTtl time.Duration
-
 // DB is a struct contaning a SQL database connection
 type DB struct {
-	conn  *pgx.Conn       // conn is the database connection.
-	cache *cache.Cache    // cache is the cache database connection.
-	ctx   context.Context // ctx is the context for database connections.
+	conn     *pgx.Conn       // conn is the database connection.
+	cache    *cache.Cache    // cache is the cache database connection.
+	cacheTtl time.Duration   // cacheTtl is the cache time-to-live.
+	ctx      context.Context // ctx is the context for database connections.
 }
 
 // NewDB initializes a new database connection and sets up the necessary tables if they don't exist.
@@ -97,7 +95,7 @@ func New(url, cacheUrl string, cacheTtl time.Duration, ctx context.Context) (db 
 		if err != nil {
 			return nil, err
 		}
-		defaultCacheTtl = cacheTtl
+		db.cacheTtl = cacheTtl
 	}
 
 	return
@@ -252,8 +250,8 @@ func (d *DB) GetLastCourses() (courses []*db.Course, err error) {
 			defer func() {
 				data, err := json.Marshal(courses)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -296,8 +294,8 @@ func (d *DB) GetLastProfessors() (professors []*db.Professor, err error) {
 			defer func() {
 				data, err := json.Marshal(professors)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -340,8 +338,8 @@ func (d *DB) GetLastScores() (scores []*db.Score, err error) {
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -396,8 +394,8 @@ func (d *DB) GetCoursesByProfessorUUID(UUID string) (courses []*db.Course, err e
 			defer func() {
 				data, err := json.Marshal(courses)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -441,8 +439,8 @@ func (d *DB) GetProfessorsByCourseCode(code string) (professors []*db.Professor,
 			defer func() {
 				data, err := json.Marshal(professors)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -484,8 +482,8 @@ func (d *DB) GetProfessorUUIDByName(name string) (uuid string, err error) {
 		cached, err := d.cache.Get(key)
 		if err == cache.ErrRedisNil {
 			defer func() {
-				if err = d.cache.Set(key, uuid, defaultCacheTtl); err != nil {
-					log.Println(err)
+				if err = d.cache.Set(key, uuid, d.cacheTtl); err != nil {
+					log.Error().Err(err)
 				}
 			}()
 		} else if err == nil {
@@ -515,8 +513,8 @@ func (d *DB) GetScoresByProfessorUUID(UUID string) (scores []*db.Score, err erro
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -572,8 +570,8 @@ func (d *DB) GetScoresByProfessorName(name string) (scores []*db.Score, err erro
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -628,8 +626,8 @@ func (d *DB) GetScoresByProfessorNameLike(nameLike string) (scores []*db.Score, 
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -691,8 +689,8 @@ func (d *DB) GetScoresByCourseName(name string) (scores []*db.Score, err error) 
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -747,8 +745,8 @@ func (d *DB) GetScoresByCourseNameLike(nameLike string) (scores []*db.Score, err
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -810,8 +808,8 @@ func (d *DB) GetScoresByCourseCode(code string) (scores []*db.Score, err error) 
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()
@@ -866,8 +864,8 @@ func (d *DB) GetScoresByCourseCodeLike(codeLike string) (scores []*db.Score, err
 			defer func() {
 				data, err := json.Marshal(scores)
 				if err == nil {
-					if err = d.cache.Set(key, data, defaultCacheTtl); err != nil {
-						log.Println(err)
+					if err = d.cache.Set(key, data, d.cacheTtl); err != nil {
+						log.Error().Err(err)
 					}
 				}
 			}()

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/rs/zerolog/log"
 	"github.com/trustelem/zxcvbn"
 	"github.com/vanillaiice/itpg/responses"
 )
@@ -51,7 +52,7 @@ var allowedMailDomains []string
 func register(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -59,13 +60,13 @@ func register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrInvalidEmail.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 	if err = checkDomainAllowed(domain); err != nil {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrEmailDomainNotAllowed.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -95,7 +96,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrGenCode.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 	confirmationCode := uuid.String()[:codeLength]
@@ -103,7 +104,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	if err = mailer.SendMail(creds.Email, mailer.MakeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -113,7 +114,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	if err = userState.Users().Set(creds.Email, keyConfirmationCodeValidityTime, time.Now().Add(confirmationCodeValidityTime).Format(time.RFC3339)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -126,7 +127,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 func sendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -145,7 +146,7 @@ func sendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrGenCode.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 	confirmationCode := uuid.String()[:codeLength]
@@ -153,7 +154,7 @@ func sendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	if err = mailer.SendMail(creds.Email, mailer.MakeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -162,7 +163,7 @@ func sendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 	if err = userState.Users().Set(creds.Email, keyConfirmationCodeValidityTime, time.Now().Add(confirmationCodeValidityTime).Format(time.RFC3339)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -174,7 +175,7 @@ func sendNewConfirmationCode(w http.ResponseWriter, r *http.Request) {
 func confirm(w http.ResponseWriter, r *http.Request) {
 	confirmationCode := r.FormValue("code")
 	if err := isEmptyStr(w, confirmationCode); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -182,7 +183,7 @@ func confirm(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		responses.ErrNotRegistered.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -190,14 +191,14 @@ func confirm(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 	t, err := time.Parse(time.RFC3339, confirmationCodeValidityTime)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 	if !t.After(time.Now()) {
@@ -209,14 +210,14 @@ func confirm(w http.ResponseWriter, r *http.Request) {
 	if err := userState.ConfirmUserByConfirmationCode(confirmationCode); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		responses.ErrWrongConfirmationCode.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := userState.Users().DelKey(username, keyConfirmationCodeValidityTime); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -231,7 +232,7 @@ func confirm(w http.ResponseWriter, r *http.Request) {
 func login(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -254,14 +255,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if err = userState.Users().Set(creds.Email, cookieExpiryUserStateKey, time.Now().Add(cookieTimeout).Format(time.UnixDate)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err = userState.Login(w, creds.Email); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -309,14 +310,14 @@ func refreshCookie(w http.ResponseWriter, r *http.Request) {
 	if err := userState.Users().Set(username, cookieExpiryUserStateKey, time.Now().Add(cookieTimeout).Format(time.UnixDate)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err := userState.Login(w, username); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -341,11 +342,11 @@ func changePassword(w http.ResponseWriter, r *http.Request) {
 
 	credsChange, err := decodeCredentialsChange(w, r)
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 	if err = isEmptyStr(w, credsChange.OldPassword, credsChange.NewPassword); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -365,7 +366,7 @@ func changePassword(w http.ResponseWriter, r *http.Request) {
 func resetPassword(w http.ResponseWriter, r *http.Request) {
 	credsReset, err := decodeCredentialsReset(w, r)
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -373,7 +374,7 @@ func resetPassword(w http.ResponseWriter, r *http.Request) {
 	if expectedResetCode, err = userState.Users().Get(credsReset.Email, "reset-code"); err != nil {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrResetCodeNotSent.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -386,7 +387,7 @@ func resetPassword(w http.ResponseWriter, r *http.Request) {
 	if err = userState.Users().DelKey(credsReset.Email, "reset-code"); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -400,7 +401,7 @@ func resetPassword(w http.ResponseWriter, r *http.Request) {
 func sendResetLink(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("email")
 	if err := isEmptyStr(w, username); err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -413,7 +414,7 @@ func sendResetLink(w http.ResponseWriter, r *http.Request) {
 	if _, err := userState.Users().Get(username, "reset-code"); err == nil {
 		w.WriteHeader(http.StatusForbidden)
 		responses.ErrResetCodeSent.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -421,22 +422,22 @@ func sendResetLink(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrGenCode.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 	resetCode := uuid.String()
 
-	if err = mailer.SendMail(username, mailer.MakeResetCodeMessage(username, fmt.Sprintf("%s?code=%s", passwordResetWebsiteURL, resetCode))); err != nil {
+	if err = mailer.SendMail(username, mailer.MakeResetCodeMessage(username, fmt.Sprintf("%s?code=%s", passwordResetUrl, resetCode))); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrSendMail.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
 	if err = userState.Users().Set(username, "reset-code", resetCode); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -448,7 +449,7 @@ func sendResetLink(w http.ResponseWriter, r *http.Request) {
 func deleteAccount(w http.ResponseWriter, r *http.Request) {
 	creds, err := decodeCredentials(w, r)
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 	if !userState.CorrectPassword(creds.Email, creds.Password) {
@@ -465,7 +466,7 @@ func deleteAccount(w http.ResponseWriter, r *http.Request) {
 	if err := userState.Users().DelKey(creds.Email, cookieExpiryUserStateKey); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		responses.ErrInternal.WriteJSON(w)
-		logger.Error().Msg(err.Error())
+		log.Error().Msg(err.Error())
 		return
 	}
 
