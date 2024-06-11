@@ -102,17 +102,17 @@ The handlers.json file contains the configuration for the server's HTTP endpoint
 
 - `pathType` is the type of the path.
 
-Path types include `super`, `admin`, `user`, and `public`.
+> Path types include `super`, `admin`, `user`, and `public`.
 
 - `handler` is the name of the Go function that handles the HTTP request.
 
 - `limiter` is the type of the limiter function that handles the HTTP request.
 
-Limiter types include `lenient` (1000 req/s/ip), `moderate` (1000 req/min/ip), `strict` (500 req/hr/ip), and `veryStrict` (100 req/hr/ip).
+> Limiter types include `lenient` (1000 req/s/ip), `moderate` (1000 req/min/ip), `strict` (500 req/hr/ip), and `veryStrict` (100 req/hr/ip).
 
 - `method` is the HTTP method of the HTTP request.
 
-Methods include `GET`, `POST`, `PUT`, and `DELETE`.
+> Methods include `GET`, `POST`, `PUT`, and `DELETE`.
 
 > method names should be in uppercase.
 
