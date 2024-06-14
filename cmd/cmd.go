@@ -8,9 +8,6 @@ import (
 	"github.com/urfave/cli/v2/altsrc"
 )
 
-// version is the current version.
-const version = "v0.7.0"
-
 // Exec starts the cli app.
 func Exec() {
 	app := &cli.App{
