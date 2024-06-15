@@ -3,6 +3,7 @@ package mail
 import (
 	"fmt"
 	"net/smtp"
+	"os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -18,18 +19,25 @@ type SmtpClient struct {
 }
 
 func NewClient(envPath string, secure bool) (*SmtpClient, error) {
-	keysMap, err := godotenv.Read(envPath)
-	if err != nil {
-		return nil, err
-	}
+	godotenv.Load(envPath) //nolint:errcheck
 
 	var client SmtpClient
 
 	keys := []string{"MAIL_FROM", "SMTP_HOST", "SMTP_PORT"}
 
+	keysMap := map[string]string{
+		keys[0]: os.Getenv(keys[0]),
+		keys[1]: os.Getenv(keys[1]),
+		keys[2]: os.Getenv(keys[2]),
+	}
+
 	if secure {
 		client.secure = secure
+
 		keys = append(keys, "USERNAME", "PASSWORD")
+
+		keysMap["USERNAME"] = os.Getenv("USERNAME")
+		keysMap["PASSWORD"] = os.Getenv("PASSWORD")
 	}
 
 	for _, k := range keys {
