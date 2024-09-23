@@ -1,3 +1,4 @@
+/* Package cache implements a basic redis cache. */
 package cache
 
 import (
@@ -9,8 +10,8 @@ import (
 
 // Cache is a cache implementation.
 type Cache struct {
-	client *redis.Client
-	ctx    context.Context
+	client *redis.Client   // client is the redis client.
+	ctx    context.Context // ctx is the context for database connections.
 }
 
 // ErrRedisNil is returned when a key is not found in redis.

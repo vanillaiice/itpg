@@ -29,13 +29,14 @@ import (
 // DatabaseBackend is the type of database backend to use.
 type DatabaseBackend string
 
-// Enum for database backend
+// Enum for database backend.
 const (
 	sqliteBackend   DatabaseBackend = "sqlite"
 	postgresBackend DatabaseBackend = "postgres"
 	pgBackend       DatabaseBackend = "pg"
 )
 
+// LogLevel is the type of log level.
 type LogLevel string
 
 // logLevelMap is the map of log levels.
@@ -82,7 +83,8 @@ type RunCfg struct {
 	AllowedOrigins     []string        // List of allowed origins for CORS.
 	AllowedMailDomains []string        // List of allowed mail domains for registering with the service.
 	PasswordResetUrl   string          // URL to the password reset website page.
-	SmtpEnvPath        string          // Path to the .env file containing SMTP cfguration.
+	NoMail             bool            // Whether to enable mail services.
+	SmtpEnvPath        string          // Path to the .env file containing SMTP configuration.
 	UseSmtp            bool            // Whether to use SMTP (false for SMTPS).
 	UseHttp            bool            // Whether to use HTTP (false for HTTPS).
 	HandlersFilePath   string          // Handler config json file.
@@ -102,9 +104,11 @@ func Run(cfg *RunCfg) (err error) {
 	}
 	allowedMailDomains = cfg.AllowedMailDomains
 
-	mailer, err = mail.NewClient(cfg.SmtpEnvPath, !cfg.UseSmtp)
-	if err != nil {
-		return
+	if !cfg.NoMail {
+		mailer, err = mail.NewClient(cfg.SmtpEnvPath, !cfg.UseSmtp)
+		if err != nil {
+			return
+		}
 	}
 
 	logLevel, ok := logLevelMap[string(cfg.LogLevel)]
@@ -158,9 +162,9 @@ func Run(cfg *RunCfg) (err error) {
 
 		var adminUsername, adminPassword, adminEmail string
 
-		if os.Getenv("ADMIN_USERNAME") != "" {
+		adminUsername = os.Getenv("ADMIN_USERNAME")
+		if adminUsername != "" {
 			log.Debug().Msg("found environment variable ADMIN_USERNAME")
-			adminUsername = os.Getenv("ADMIN_USERNAME")
 		} else {
 			fmt.Println("enter admin username:")
 			if _, err = fmt.Scanln(&adminUsername); err != nil {
@@ -169,9 +173,9 @@ func Run(cfg *RunCfg) (err error) {
 			}
 		}
 
-		if os.Getenv("ADMIN_PASSWORD") != "" {
+		adminPassword = os.Getenv("ADMIN_PASSWORD")
+		if adminPassword != "" {
 			log.Debug().Msg("found environment variable ADMIN_PASSWORD")
-			adminPassword = os.Getenv("ADMIN_PASSWORD")
 		} else {
 			fmt.Println("enter admin password:")
 			if _, err = fmt.Scanln(&adminPassword); err != nil {
@@ -180,9 +184,9 @@ func Run(cfg *RunCfg) (err error) {
 			}
 		}
 
-		if os.Getenv("ADMIN_EMAIL") != "" {
+		adminEmail = os.Getenv("ADMIN_EMAIL")
+		if adminEmail != "" {
 			log.Debug().Msg("found environment variable ADMIN_EMAIL")
-			adminEmail = os.Getenv("ADMIN_EMAIL")
 		} else {
 			fmt.Println("enter admin email:")
 			if _, err = fmt.Scanln(&adminEmail); err != nil {
@@ -209,7 +213,7 @@ func Run(cfg *RunCfg) (err error) {
 
 	userState.SetCookieTimeout(int64(cookieTimeout.Seconds()))
 
-	if cfg.CodeLength > 32 || cfg.CodeLength < 8 {
+	if cfg.CodeLength < 8 || cfg.CodeLength > 32 {
 		return fmt.Errorf("invalid code length: %d (should be between 8 and 32)", cfg.CodeLength)
 	}
 	codeLength = cfg.CodeLength
@@ -299,6 +303,7 @@ func Run(cfg *RunCfg) (err error) {
 	return <-errChan
 }
 
+// removeUsersDb removes the BOLT users database file.
 func removeUsersDb(path string) {
 	if err := os.Remove(path); err != nil {
 		panic(err)

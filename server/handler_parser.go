@@ -143,12 +143,12 @@ var handlerFuncMap = map[string]func(http.ResponseWriter, *http.Request){
 // parseHandlers parses a handlers.json file and returns a slice of HandlerInfo.
 func parseHandlers(reader *bytes.Reader) ([]*HandlerInfo, error) {
 	var handlers Handler
-	var handlersInfo []*HandlerInfo
 
 	if err := json.NewDecoder(reader).Decode(&handlers); err != nil {
 		return nil, err
 	}
 
+	var handlersInfo []*HandlerInfo
 	for _, h := range handlers.Handlers {
 		handlerFunc, ok := handlerFuncMap[h.Handler]
 		if !ok {

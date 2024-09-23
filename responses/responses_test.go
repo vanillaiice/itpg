@@ -50,7 +50,6 @@ func TestResponseWriteJSON(t *testing.T) {
 }
 
 func TestErrorCodes(t *testing.T) {
-	// Test client-side errors
 	testErrorCodes(t, []struct {
 		err  *Response
 		code int
@@ -83,7 +82,6 @@ func TestErrorCodes(t *testing.T) {
 		{ErrNotSuperAdmin, 4024},
 	})
 
-	// Test server-side errors
 	testErrorCodes(t, []struct {
 		err  *Response
 		code int
@@ -91,6 +89,8 @@ func TestErrorCodes(t *testing.T) {
 		{ErrGenCode, 5000},
 		{ErrSendMail, 5001},
 		{ErrInternal, 5002},
+		{ErrMailerNotConfigured, 5003},
+		{RegisteredNoMailer, 5004},
 	})
 }
 

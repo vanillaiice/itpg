@@ -54,8 +54,8 @@ func TestMain(m *testing.M) {
 		Repository: "postgres",
 		Tag:        "16.2-alpine3.19",
 		Env: []string{
-			"POSTGRES_PASSWORD=pazzword",
 			"POSTGRES_USER=uzer",
+			"POSTGRES_PASSWORD=pazzword",
 			"POSTGRES_DB=db",
 			"listen_addresses='*'",
 		},
@@ -69,6 +69,8 @@ func TestMain(m *testing.M) {
 
 	addr := resource.GetHostPort("5432/tcp")
 	TestDBUrl = fmt.Sprintf("postgres://uzer:pazzword@%s/db?sslmode=disable", addr)
+
+	resource.Expire(120)
 
 	pool.MaxWait = 120 * time.Second
 	if err = pool.Retry(func() error {

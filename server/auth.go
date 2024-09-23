@@ -101,25 +101,32 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 	confirmationCode := uuid.String()[:codeLength]
 
-	if err = mailer.SendMail(creds.Email, mailer.MakeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		responses.ErrSendMail.WriteJSON(w)
-		log.Error().Msg(err.Error())
-		return
-	}
-
-	userState.AddUser(creds.Email, creds.Password, "")
-	userState.AddUnconfirmed(creds.Email, confirmationCode)
-
-	if err = userState.Users().Set(creds.Email, keyConfirmationCodeValidityTime, time.Now().Add(confirmationCodeValidityTime).Format(time.RFC3339)); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		responses.ErrInternal.WriteJSON(w)
-		log.Error().Msg(err.Error())
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	responses.Success.WriteJSON(w)
+	if mailer != nil {
+		if err = mailer.SendMail(creds.Email, mailer.MakeConfCodeMessage(creds.Email, confirmationCode)); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			responses.ErrSendMail.WriteJSON(w)
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		userState.AddUser(creds.Email, creds.Password, "")
+		userState.AddUnconfirmed(creds.Email, confirmationCode)
+
+		if err = userState.Users().Set(creds.Email, keyConfirmationCodeValidityTime, time.Now().Add(confirmationCodeValidityTime).Format(time.RFC3339)); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			responses.ErrInternal.WriteJSON(w)
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		responses.Success.WriteJSON(w)
+	} else {
+		userState.AddUser(creds.Email, creds.Password, "")
+		userState.Confirm(creds.Email)
+
+		responses.RegisteredNoMailer.WriteJSON(w)
+	}
 }
 
 // sendNewConfirmationCode sends a new confirmation code to a registered user's email
@@ -426,6 +433,12 @@ func sendResetLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resetCode := uuid.String()
+
+	if mailer == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrMailerNotConfigured.WriteJSON(w)
+		return
+	}
 
 	if err = mailer.SendMail(username, mailer.MakeResetCodeMessage(username, fmt.Sprintf("%s?code=%s", passwordResetUrl, resetCode))); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

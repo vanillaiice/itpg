@@ -1,4 +1,4 @@
-package cache
+package cache_test
 
 import (
 	"context"
@@ -11,9 +11,10 @@ import (
 
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
+	"github.com/vanillaiice/itpg/db/cache"
 )
 
-var DB *Cache
+var DB *cache.Cache
 
 var dbUrl string
 
@@ -46,9 +47,11 @@ func TestMain(m *testing.M) {
 	addr := net.JoinHostPort("localhost", resource.GetPort("6379/tcp"))
 	dbUrl = fmt.Sprintf("redis://%s", addr)
 
+	resource.Expire(120)
+
 	pool.MaxWait = 120 * time.Second
 	if err = pool.Retry(func() error {
-		DB, err = New(dbUrl, context.Background())
+		DB, err = cache.New(dbUrl, context.Background())
 		return err
 	}); err != nil {
 		log.Fatal(err)
@@ -66,9 +69,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestNew(t *testing.T) {
-	testDB, err := New(dbUrl, context.Background())
+	testDB, err := cache.New(dbUrl, context.Background())
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err = testDB.Close(); err != nil {
 		t.Error(err)
@@ -97,8 +100,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	err := DB.Close()
-	if err != nil {
+	if err := DB.Close(); err != nil {
 		t.Error(err)
 	}
 }

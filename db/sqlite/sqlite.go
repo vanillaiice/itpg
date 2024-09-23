@@ -17,16 +17,16 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// maxRowReturn represents the maximum number of rows returned by a query
+// maxRowReturn represents the maximum number of rows returned by a query.
 const maxRowReturn = 100
 
-// roundPrecision is the number decimals to use when rounding
+// roundPrecision is the number decimals to use when rounding.
 const roundPrecision = 2
 
-// defaultHash is the hash value used when adding course to a professor
+// defaultHash is the hash value used when adding course to a professor.
 const defaultHash = ""
 
-// DB is a struct contaning a SQL database connection
+// DB is a struct contaning a SQL database connection.
 type DB struct {
 	conn     *sql.DB         // conn is the sqlite database connection.
 	cache    *cache.Cache    // cache is the cache database connection.

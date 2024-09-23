@@ -168,6 +168,14 @@ var rootCmd *cli.Command = &cli.Command{
 				Value:   "handlers.json",
 			},
 		),
+		altsrc.NewBoolFlag(
+			&cli.BoolFlag{
+				Name:    "no-mail",
+				Aliases: []string{"n"},
+				Usage:   "disable mail services",
+				Value:   false,
+			},
+		),
 		&cli.StringFlag{
 			Name:    "load",
 			Aliases: []string{"l"},
@@ -197,6 +205,7 @@ var rootCmd *cli.Command = &cli.Command{
 				CodeLength:         ctx.Int("code-length"),
 				MinPasswordScore:   ctx.Int("min-password-score"),
 				LogLevel:           server.LogLevel(ctx.String("log-level")),
+				NoMail:             ctx.Bool("no-mail"),
 			},
 		)
 	},

@@ -18,7 +18,7 @@ $ go install github.com/vanillaiice/itpg@latest
 $ docker pull vanillaiice/itpg:latest
 ```
 
-## git
+## Git
 
 ```sh
 $ git clone https://github.com/vanillaiice/itpg
@@ -34,9 +34,9 @@ First, install the itpg package following the instructions above.
 
 ## Super admin user
 
-When running itpg, if the the users database does not exists, we will be prompted to create a super admin user.
+When running itpg for the first time you will be prompted to create a super admin user.
 
-We can set the super admin's credentials using environment variables:
+You can set the super admin's credentials using environment variables:
 
 ```sh
 $ export ADMIN_USERNAME=admin ADMIN_PASSWORD=password ADMIN_EMAIL=admin@admin.com
@@ -46,7 +46,7 @@ $ ADMIN_USERNAME=admin ADMIN_PASSWORD=password ADMIN_EMAIL=admin@admin.com itpg 
 $ itpg --load config.toml
 ```
 
-Or enter them interactively when running itpg:
+Or enter them interactively when running the server:
 
 ```sh
 $ itpg
@@ -62,19 +62,19 @@ admin@admin.com
 
 ## Mail client
 
-To send confirmation and reset code to users, we need to use a SMTP mail server.
+To send confirmation and reset code to users, you need a SMTP mail server.
 
-We can use a third party mail sending service like [Mailtrap](https://mailtrap.io/), [SendGrid](https://sendgrid.com/) or [Mailgun](https://mailgun.com/).
+You can use a third party mail sending service like [Mailtrap](https://mailtrap.io/), [SendGrid](https://sendgrid.com/) or [Mailgun](https://mailgun.com/).
 
 Or manually set up a self-hosted mail server on using the following guides:
 - [Landchad](https://landchad.net/mail/smtp/)
 - [linuxbabe](https://www.linuxbabe.com/mail-server/postfix-send-only-multiple-domains-ubuntu)
 
-We can also use Docker:
+You can also use Docker:
 - [ixtodai/smtp](https://gitlab.com/ix.ai/smtp/)
 - [docker-mailserver](https://github.com/docker-mailserver/docker-mailserver)
 
-After setting up the mail server, we store the SMTP credentials in an .env file:
+After setting up the mail server, store the SMTP credentials in an .env file:
 
 ```sh
 SMTP_HOST = "example.com"
@@ -114,7 +114,7 @@ The handlers.json file contains the configuration for the server's HTTP endpoint
 
 > Methods include `GET`, `POST`, `PUT`, and `DELETE`.
 
-> method names should be in uppercase.
+> Method names should be in uppercase.
 
 ### handlers.json snippet:
 
@@ -137,7 +137,7 @@ The handlers.json file contains the configuration for the server's HTTP endpoint
 		},
 ```
 
-> There should be a sample handlers.json file in the root of the project, that can be used as a reference.
+> There should be a sample handlers.json file in the root of the project that can be used as a reference.
 
 ## HTTPS
 
@@ -147,7 +147,7 @@ It is <strike>`mandatory`</strike> recommended to use HTTPS when running the itp
 
 #### Certbot
 
-We can use `certbot` to generate the needed server.key and server.crt files:
+You can use `certbot` to generate the needed server.key and server.crt files:
 
 ```sh
 $ sudo certbot certonly --standalone -d <YOUR_DOMAIN>
@@ -160,7 +160,7 @@ The `privkey.pem`and `fullchain.pem` represent the `server.key` and `server.crt`
 
 #### Self signed (not recommended)
 
-We can generate the needed server.key and server.crt files using `openssl`:
+You can also generate the server.key and server.crt files using `openssl`:
 
 ```sh
 $ openssl genrsa -out server.key 2048
@@ -169,7 +169,7 @@ $ openssl req -new -x509 -key server.key -out server.crt -days 3650
 
 > source: https://github.com/denji/golang-tls
 
-After getting the files, we can pass them to the server like so:
+After getting the files, pass them to the server like so:
 
 ```sh
 $ itpg --key server.key --cert server.crt
@@ -177,17 +177,17 @@ $ itpg --key server.key --cert server.crt
 
 ### Using Caddy
 
-We can set up automatic HTTPS with `Caddy`.
+You can set up automatic HTTPS with `Caddy`.
 
 First, run the itpg server locally on the machine with HTTP.
 
-Let's run it on port 5555:
+For example, let's run it on port 5555:
 
 ```sh
 $ itpg --port 5555 -http
 ```
 
-We then create a Caddy reverse proxy to the itpg server with the following Caddyfile:
+Then, create a Caddy reverse proxy to the itpg server through the following Caddyfile:
 
 ```
 https://<YOUR_DOMAIN> {
@@ -195,7 +195,7 @@ https://<YOUR_DOMAIN> {
 }
 ```
 
-Finally, we can run Caddy:
+Finally, run Caddy:
 
 ```sh
 $ caddy run --config Caddyfile
@@ -211,7 +211,7 @@ $ caddy run --config Caddyfile
 
 For the itpg server to be functional, we need to seed the database with data.
 
-It can easily be done in most programming language that has support for sqlite or postgres.
+It can easily be done in most programming languages that have support for sqlite/postgres.
 
 There is an example in [Go](https://github.com/vanillaiice/itpg-seeder), that uses the [jaswdr/faker](https://github.com/jaswdr/faker) package to seed the database with fake data.
 

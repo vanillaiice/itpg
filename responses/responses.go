@@ -8,8 +8,8 @@ import (
 
 // Response represents a response returned by the server.
 type Response struct {
-	Code    int         `json:"code"`    // Internal response status code
-	Message interface{} `json:"message"` // Message associated with the response
+	Code    int         `json:"code"`    // Internal response status code.
+	Message interface{} `json:"message"` // Message associated with the response.
 }
 
 // Error returns an error representation of the Response.
@@ -19,7 +19,7 @@ func (r *Response) Error() string {
 	return string(b)
 }
 
-// WriteJSON writes a response to the specified writer
+// WriteJSON writes a response to the specified writer.
 func (r *Response) WriteJSON(w io.Writer) {
 	w.Write([]byte(r.Error())) //nolint:errcheck
 }
@@ -30,7 +30,7 @@ func NewResponse(code int, message interface{}) *Response {
 }
 
 // NewErrEmptyValueFor returns a new Response struct with an error code
-// indicating an empty value, and the name of the empty value
+// indicating an empty value, and the name of the empty value.
 func NewErrEmptyValueFor(s string) *Response {
 	return &Response{ErrEmptyValue.Code, fmt.Sprintf("got empty value for %s", s)}
 }
@@ -41,7 +41,7 @@ var SuccessCode = 2000
 // Success response indicating successful operation.
 var Success = NewResponse(SuccessCode, "success")
 
-// Client-side errors
+// Client-side Responses.
 var (
 	// ErrRegistered indicates that the user is already registered.
 	ErrRegistered = NewResponse(4000, "already registered")
@@ -97,7 +97,7 @@ var (
 	ErrNotSuperAdmin = NewResponse(4024, "not admin")
 )
 
-// Server-side Errors
+// Server-side Responses.
 var (
 	// ErrGenCode indicates an error generating the confirmation code.
 	ErrGenCode = NewResponse(5000, "error generating confirmation code")
@@ -105,4 +105,8 @@ var (
 	ErrSendMail = NewResponse(5001, "error mailing confirmation code")
 	// ErrInternal indicates an internal Error.
 	ErrInternal = NewResponse(5002, "internal error")
+	// ErrMailerNotConfigured indicates that the mailer is not configured.
+	ErrMailerNotConfigured = NewResponse(5003, "mailer not configured")
+	// RegisteredNoMailer indicates that the user is registered but mail services are not configured.
+	RegisteredNoMailer = NewResponse(5004, "registered but mail services not configured")
 )
