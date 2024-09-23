@@ -62,11 +62,11 @@ admin@admin.com
 
 ## Mail client
 
-To send confirmation and reset code to users, you need a SMTP mail server.
+To send confirmation and reset codes to users, you need a SMTP mail server.
 
 You can use a third party mail sending service like [Mailtrap](https://mailtrap.io/), [SendGrid](https://sendgrid.com/) or [Mailgun](https://mailgun.com/).
 
-Or manually set up a self-hosted mail server on using the following guides:
+Or manually set up a self-hosted mail server using the following guides:
 - [Landchad](https://landchad.net/mail/smtp/)
 - [linuxbabe](https://www.linuxbabe.com/mail-server/postfix-send-only-multiple-domains-ubuntu)
 
