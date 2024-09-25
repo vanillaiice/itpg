@@ -465,6 +465,17 @@ func deleteAccount(w http.ResponseWriter, r *http.Request) {
 		log.Error().Msg(err.Error())
 		return
 	}
+	username, ok := r.Context().Value(usernameContextKey).(string)
+	if !ok || username == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		responses.ErrInternal.WriteJSON(w)
+		return
+	}
+	if username != creds.Email {
+		w.WriteHeader(http.StatusForbidden)
+		responses.ErrPermissionDenied.WriteJSON(w)
+		return
+	}
 	if !userState.CorrectPassword(creds.Email, creds.Password) {
 		w.WriteHeader(http.StatusUnauthorized)
 		responses.ErrWrongUsernamePassword.WriteJSON(w)
